@@ -1,0 +1,20 @@
+{
+  "email": "rollingflint@foxmail.com",
+  "password": "genpxdxpfiikbhee",
+  "imap": {
+    "host": "imap.qq.com",
+    "port": 993,
+    "ssl": true
+  },
+  "pop3": {
+    "host": "pop.qq.com",
+    "port": 995,
+    "ssl": true
+  },
+  "smtp": {
+    "host": "smtp.qq.com",
+    "port": 465,
+    "ssl": true,
+    "starttls": false
+  }
+}
