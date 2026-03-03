@@ -25,7 +25,7 @@ npm run rebuild  # 重新编译 native 模块 (better-sqlite3)
 
 ## 目录结构
 
-```
+```text
 main/                    # Electron 主进程
   index.ts               # 入口：初始化 DB、注册 IPC、创建窗口
   window.ts              # 主窗口 BrowserWindow 创建
@@ -90,13 +90,49 @@ shared/                  # 主进程和渲染进程共享
     ui-schema.ts         # UISchema, 全部 UI 组件类型定义, UIAction
 
 skills/                  # 内置 Skills（每个子目录含 SKILL.md）
+
+relay-server/            # 独立 Node.js 中继服务器
+  src/
+    index.ts             # 入口：Express + HTTP + WebSocket 服务器
+    auth.ts              # JWT 注册/登录（bcrypt 密码、SQLite 用户表）
+    db.ts                # SQLite 初始化（better-sqlite3）
+    routes/
+      auth-routes.ts     # POST /auth/register, /auth/login
+      agent-routes.ts    # GET/POST /agents（远程 Agent 管理）
+      conv-routes.ts     # GET/POST /conversations, /:id/messages
+      middleware.ts      # JWT 鉴权中间件
+    ws/
+      relay.ts           # 中继状态管理（pairingKey → desktopWs 映射）
+      desktop-ws.ts      # /desktop WebSocket：接收桌面端注册 + 转发命令
+      web-ws.ts          # /web?token=<jwt> WebSocket：浏览器客户端
+
+relay-web/               # 独立 React SPA（浏览器远程控制界面）
+  src/
+    main.tsx             # React 挂载点
+    types.ts             # 共享类型（IpcAgentEvent、UISchema 等）
+    utils.ts             # 工具函数
+    hooks/
+      useRelayWS.ts      # WebSocket 连接管理 + 消息路由
+    store/
+      auth-store.ts      # JWT token + 用户信息（Zustand）
+      chat-store.ts      # 对话消息 + Agent 事件处理
+    pages/
+      LoginPage.tsx      # 登录/注册页
+      AgentsPage.tsx     # 远程 Agent 列表（添加/选择）
+      ChatPage.tsx       # 聊天界面（含 UITilePanel）
+    components/
+      chat/
+        MessageBubble.tsx   # 消息渲染
+        UITilePanel.tsx     # 磁贴面板：最小化 UI 块吸附到屏幕右边缘
+      generative-ui/
+        UIRenderer.tsx      # 内联动态 UI 渲染（与桌面端相同 schema）
 ```
 
 ## 架构与数据流
 
 ### Agent 调用链
 
-```
+```text
 用户输入 → renderer useAgent.sendMessage()
   → IPC agent:start (含 modelId?, skillIds?) → main agent-handlers.ts
     → saveMessage() + runAgentSession()
@@ -114,11 +150,11 @@ skills/                  # 内置 Skills（每个子目录含 SKILL.md）
 - **Main → Renderer**: `sender.send('agent:stream-event', event)` — 推送流式事件
 - **Main → UI Window**: `win.webContents.send('ui-window:schema', payload)` — 推送 UISchema
 
-**主要通道**：`agent:start` / `agent:interrupt`、`conversation:*`、`messages:get`、`settings:*`、`skills:*`（list/save/update/delete/toggle/import）、`mcp:*`、`ui:action`、`ui-window:*`
+**主要通道**：`agent:start` / `agent:interrupt`、`conversation:*`、`messages:get`、`settings:*`、`skills:*`（list/save/update/delete/toggle/import）、`mcp:*`、`ui:action`、`ui-window:*`、`remote-control:get-status`、`remote-control:regen-key`、`remote-control:status`（推送）
 
 ### 动态 UI (Generative UI) 流程
 
-```
+```text
 LLM 调用 ui_render 工具（传入 UISchema JSON）
   → Agent tool_execution → message-processor 解析 toolcall_end
     → 发出 IpcAgentEvent { type: 'ui_render', schema, renderBlockId }
@@ -253,4 +289,3 @@ interface AppSettings {
 1. 在项目根 `skills/` 下创建子目录（如 `my-skill/`）
 2. 创建 `SKILL.md` 文件，定义技能名称和内容
 3. builtin 技能会自动被 `listAllSkills()` 发现；user 技能通过 Settings → Skills 的 import 导入到 `userData/skills`
-
