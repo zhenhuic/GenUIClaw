@@ -1,16 +1,17 @@
 import React, { useState } from 'react'
-import { X, Server, Wrench, Palette, Cpu, Sparkles } from 'lucide-react'
+import { X, Server, Wrench, Palette, Cpu, Sparkles, Radio } from 'lucide-react'
 import { MCPServerList } from './MCPServerList'
 import { GeneralSettings } from './GeneralSettings'
 import { ToolSettings } from './ToolSettings'
 import { ModelsSettings } from './ModelsSettings'
 import { SkillsSettings } from './SkillsSettings'
+import { RemoteControlSettings } from './RemoteControlSettings'
 
 interface Props {
   onClose: () => void
 }
 
-type Tab = 'general' | 'models' | 'skills' | 'tools' | 'mcp'
+type Tab = 'general' | 'models' | 'skills' | 'tools' | 'mcp' | 'remote'
 
 export function SettingsPanel({ onClose }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('general')
@@ -21,6 +22,7 @@ export function SettingsPanel({ onClose }: Props) {
     { id: 'skills', label: 'Skills', icon: <Sparkles size={14} /> },
     { id: 'tools', label: 'Tools', icon: <Wrench size={14} /> },
     { id: 'mcp', label: 'MCP Servers', icon: <Server size={14} /> },
+    { id: 'remote', label: 'Remote Control', icon: <Radio size={14} /> },
   ]
 
   return (
@@ -96,6 +98,7 @@ export function SettingsPanel({ onClose }: Props) {
             {activeTab === 'skills' && <SkillsSettings />}
             {activeTab === 'tools' && <ToolSettings />}
             {activeTab === 'mcp' && <MCPServerList />}
+            {activeTab === 'remote' && <RemoteControlSettings />}
           </div>
         </div>
       </div>

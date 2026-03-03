@@ -1,5 +1,5 @@
 import React from 'react'
-import { Plus, MessageSquare, Trash2 } from 'lucide-react'
+import { Plus, MessageSquare, Trash2, Wifi } from 'lucide-react'
 import { useConversationStore } from '../../store/conversation-store'
 
 export function Sidebar() {
@@ -63,6 +63,14 @@ export function Sidebar() {
             >
               <MessageSquare size={13} className="flex-shrink-0" />
               <span className="flex-1 truncate">{conv.title}</span>
+              {conv.isRemote && (
+                <span
+                  className="flex-shrink-0 flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded"
+                  style={{ background: 'var(--accent-dim)', color: 'var(--accent)', fontSize: 10 }}
+                >
+                  <Wifi size={9} />
+                </span>
+              )}
               <span
                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded"
                 onClick={(e) => handleDelete(e, conv.id)}

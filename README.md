@@ -12,7 +12,7 @@
 
 这形成了一个 **对话 × 界面** 的闭环：
 
-```
+```text
 用户提问 → Agent 推理 → 生成 UI → 用户在界面上操作 → Agent 收到反馈 → 继续推理 → ...
 ```
 
@@ -24,6 +24,7 @@
 
 - **Generative Dynamic UI**：LLM 通过 `ui_render` 工具动态生成交互式 UI，在独立窗口实时渲染
 - **双向 UI 交互**：用户在 UI 窗口中的操作（点击、提交、选择）回传 Agent，形成对话驱动的工作流
+- **远程控制**：通过中继服务器（relay-server）将桌面 Agent 暴露给任意浏览器，支持完整的聊天 + 动态 UI 交互
 - **多模型支持**：兼容 OpenAI 兼容接口和 Anthropic 原生 API，可同时配置多个模型
 - **Skills 技能系统**：模块化技能扩展，内置代码审查、邮件读写、Generative UI 指南，支持用户自定义导入
 - **MCP 服务器集成**：通过 Model Context Protocol 连接外部工具和数据源
@@ -35,7 +36,7 @@
 ## 支持的 UI 组件
 
 | 组件 | 用途 |
-|------|------|
+| --- | --- |
 | `table` | 数据表格，支持排序、分页、行选择 |
 | `form` | 结构化输入表单，支持文本/数字/选择/复选框/文件等字段 |
 | `chart` | 数据可视化，支持折线图、柱状图、面积图、饼图、散点图 |
@@ -53,7 +54,7 @@
 ## 技术栈
 
 | 层级 | 技术 |
-|------|------|
+| --- | --- |
 | 框架 | Electron 33 + React 18 + TypeScript |
 | 构建 | electron-vite (Vite 5) + Rollup，ESM 输出 |
 | AI SDK | `@mariozechner/pi-agent-core` / `pi-ai` / `pi-coding-agent` |
@@ -112,7 +113,7 @@ npm run rebuild
 启动后，进入 **Settings → Models**，添加至少一个模型配置：
 
 | 字段 | 说明 |
-|------|------|
+| --- | --- |
 | Name | 显示名称，随意填写 |
 | Base URL | API 地址（如 `https://api.openai.com` 或本地 Ollama 地址） |
 | API Key | 对应服务的密钥 |
@@ -130,7 +131,7 @@ Skills 是注入 Agent system prompt 的可插拔模块，告诉 Agent 特定场
 ### 内置技能
 
 | 技能 | 描述 |
-|------|------|
+| --- | --- |
 | `generative-ui` | 教 Agent 如何使用 `ui_render` 工具构建交互式界面 |
 | `code-review` | 代码审查指南，输出按严重度分级的审查报告 |
 | `email` | 通过 IMAP/SMTP 读取和发送邮件 |
@@ -155,9 +156,82 @@ Settings → MCP Servers，配置符合 [Model Context Protocol](https://modelco
 
 ---
 
+## 远程控制
+
+远程控制功能允许你通过任意浏览器远程使用桌面 Agent，包括完整的聊天和动态 UI 交互。系统由三部分组成：
+
+### 架构
+
+```text
+浏览器（relay-web）
+  └─ WebSocket /web?token=<jwt>
+       └─ relay-server（中继服务器）
+            └─ WebSocket /desktop（pairingKey 认证）
+                 └─ 桌面 Electron 应用（GenUIClaw）
+                      └─ runAgentSession() → Agent 推理
+```
+
+### 组件说明
+
+| 组件 | 路径 | 说明 |
+| --- | --- | --- |
+| 桌面客户端 | `main/remote-control/ws-client.ts` | 单例 `relayClient`，WebSocket + 心跳 + 自动重连 |
+| 中继协议 | `main/remote-control/relay-protocol.ts` | Desktop ↔ Relay 消息类型定义 |
+| 中继服务器 | `relay-server/` | Express + ws，独立 Node.js 项目 |
+| Web 界面 | `relay-web/` | React SPA，独立 Vite 项目 |
+
+### 快速启动
+
+#### 1. 启动中继服务器
+
+```bash
+cd relay-server
+npm install
+npm run dev   # 默认监听 :3000
+```
+
+#### 2. 启动 Web 界面
+
+```bash
+cd relay-web
+npm install
+npm run dev   # 默认 :5173，需设置 VITE_RELAY_WS_URL
+```
+
+#### 3. 桌面端配置
+
+Settings → Remote Control：
+
+1. 勾选 **Enable Remote Control**
+2. 填入中继服务器的 WebSocket 地址（如 `ws://localhost:3000`）
+3. 复制 **Pairing Key**
+
+#### 4. Web 端配对
+
+在浏览器打开 relay-web，注册/登录后，添加 Remote Agent 时粘贴 Pairing Key 即可开始远程对话。
+
+### relay-server REST API
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/auth/register` | 注册（email + password） |
+| POST | `/auth/login` | 登录，返回 JWT |
+| GET/POST | `/agents` | 远程 Agent 管理 |
+| GET/POST | `/conversations` | 对话列表/创建 |
+| GET | `/conversations/:id/messages` | 消息历史 |
+| GET | `/health` | 健康检查 |
+
+### relay-web 功能
+
+- **UITilePanel**：最小化的 UI 块吸附为磁贴，固定在屏幕右边缘；点击展开预览，可一键恢复到对话流或关闭
+- 支持与桌面端相同的全部 UISchema 组件（UIRenderer 内联渲染）
+- 自动重连（指数退避，最多 10 次）
+
+---
+
 ## 架构概览
 
-```
+```text
 用户输入
   └─ IPC: agent:start
        └─ main/agent/runner.ts
@@ -238,12 +312,14 @@ GenUIClaw 代表的是一种对"人机交互"的重新想象：**界面不再是
 
 ## 项目结构速览
 
-```
+```text
 main/          # Electron 主进程（Agent 引擎、IPC、数据库、工具）
 preload/       # contextBridge 安全层
 renderer/      # React SPA（聊天界面、设置、Generative UI 渲染）
 shared/        # 主进程和渲染进程共享的类型和常量
 skills/        # 内置技能目录
+relay-server/  # 中继服务器（独立 Node.js 项目）
+relay-web/     # 浏览器远程控制界面（独立 React SPA）
 ```
 
 ---

@@ -21,6 +21,24 @@ export default function App() {
     return cleanup
   }, [])
 
+  useEffect(() => {
+    const cleanup = window.electronAPI.remoteControl.onActivateConversation(
+      async ({ conversationId, userMessage, sessionId }) => {
+        const store = useConversationStore.getState()
+        const switched = store.activeConversationId !== conversationId
+        if (switched) {
+          await store.selectConversation(conversationId)
+          await store.loadConversations()
+          // User message already saved to DB by ws-client; selectConversation loads it
+        } else {
+          // Same conversation: message saved to DB but not in memory yet
+          store.addUserMessage(userMessage, sessionId)
+        }
+      }
+    )
+    return cleanup
+  }, [])
+
   // Apply theme on load
   useEffect(() => {
     const root = document.documentElement

@@ -33,6 +33,12 @@ export interface SkillConfig {
   source: 'builtin' | 'user'
 }
 
+export interface RemoteControlConfig {
+  enabled: boolean
+  serverUrl: string
+  pairingKey: string
+}
+
 export interface AppSettings {
   models: ModelConfig[]
   skillStates: Record<string, boolean>
@@ -43,6 +49,7 @@ export interface AppSettings {
   mcpServers: Record<string, McpServerConfig>
   fontSize: 'sm' | 'md' | 'lg'
   showToolDetails: boolean
+  remoteControl: RemoteControlConfig
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -63,4 +70,9 @@ Do NOT ask for input in plain text when a UI component is more appropriate. The 
   mcpServers: {},
   fontSize: 'md',
   showToolDetails: true,
+  remoteControl: {
+    enabled: false,
+    serverUrl: '',
+    pairingKey: '',
+  },
 }

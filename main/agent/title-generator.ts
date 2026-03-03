@@ -30,8 +30,8 @@ export async function generateConversationTitle(
   conversationId: string,
   modelId: string | undefined,
   mainWindow: BrowserWindow | null
-): Promise<void> {
-  if (titledConversations.has(conversationId)) return
+): Promise<string | null> {
+  if (titledConversations.has(conversationId)) return null
   titledConversations.add(conversationId)
 
   try {
@@ -39,7 +39,7 @@ export async function generateConversationTitle(
     const userMessages = messages.filter((m) => m.role === 'user')
     const assistantMessages = messages.filter((m) => m.role === 'assistant')
 
-    if (userMessages.length === 0 || assistantMessages.length === 0) return
+    if (userMessages.length === 0 || assistantMessages.length === 0) return null
 
     const userText = userMessages[0].content
       .filter((b) => b.type === 'text')
@@ -53,14 +53,14 @@ export async function generateConversationTitle(
       .join(' ')
       .slice(0, 500)
 
-    if (!userText.trim()) return
+    if (!userText.trim()) return null
 
     const models = getSetting('models') as ModelConfig[]
     const selectedModel = modelId
       ? models.find((m) => m.id === modelId)
       : models.find((m) => m.enabled)
 
-    if (!selectedModel) return
+    if (!selectedModel) return null
 
     const resolvedModel = resolveModelForTitle(selectedModel)
 
@@ -108,9 +108,12 @@ export async function generateConversationTitle(
           title,
         })
       }
+      return title
     }
+    return null
   } catch (err) {
     log.warn(`[TitleGen] Failed to generate title for ${conversationId}:`, err)
     titledConversations.delete(conversationId)
+    return null
   }
 }

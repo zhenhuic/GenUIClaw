@@ -5,6 +5,7 @@ export interface Conversation {
   title: string
   createdAt: number
   updatedAt: number
+  isRemote?: boolean
 }
 
 // A single content block within a message

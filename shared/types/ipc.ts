@@ -100,6 +100,15 @@ export type IpcAgentEvent =
       data: Record<string, unknown>
     }
 
+// ---- Remote Control ----
+
+export type RemoteControlStatus =
+  | { state: 'disabled' }
+  | { state: 'connecting'; serverUrl: string }
+  | { state: 'connected'; serverUrl: string; pairingKey: string }
+  | { state: 'disconnected'; serverUrl: string; error?: string }
+  | { state: 'reconnecting'; serverUrl: string; attempt: number }
+
 // ---- Typed IPC return shapes ----
 
 export type IpcResult<T> = { data: T; error?: never } | { data?: never; error: string }
@@ -143,6 +152,12 @@ export interface ElectronAPI {
     onSchema: (callback: (data: { sessionId: string; renderBlockId: string; schema: UISchema }) => void) => () => void
     getSchema: () => Promise<IpcResult<{ sessionId: string; renderBlockId: string; schema: UISchema } | null>>
     action: (payload: { sessionId: string; renderBlockId: string; actionId: string; data: Record<string, unknown> }) => Promise<IpcResult<{ status: string }>>
+  }
+  remoteControl: {
+    getStatus: () => Promise<IpcResult<RemoteControlStatus>>
+    regenKey: () => Promise<IpcResult<{ pairingKey: string }>>
+    onStatusChange: (callback: (status: RemoteControlStatus) => void) => () => void
+    onActivateConversation: (callback: (data: { conversationId: string; userMessage: string; sessionId: string }) => void) => () => void
   }
 }
 

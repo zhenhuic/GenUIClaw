@@ -27,6 +27,7 @@ export interface AgentRunOptions {
   sender: WebContents
   modelId?: string
   skillIds?: string[]
+  onEvent?: (event: IpcAgentEvent) => void
 }
 
 /** 将 pi-ai AssistantMessage 的 content 转为持久化用的 MessageContentBlock[] */
@@ -100,6 +101,7 @@ export async function runAgentSession(opts: AgentRunOptions): Promise<void> {
     if (!opts.sender.isDestroyed()) {
       opts.sender.send(IPC_CHANNELS.AGENT_STREAM_EVENT, event)
     }
+    opts.onEvent?.(event)
   }
 
   log.info(`[Agent] Session ${opts.sessionId} starting. Prompt: ${opts.prompt.slice(0, 80)}...`)

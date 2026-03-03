@@ -41,6 +41,12 @@ export const IPC_CHANNELS = {
   UI_WINDOW_SCHEMA: 'ui-window:schema',
   UI_WINDOW_ACTION: 'ui-window:action',
   UI_WINDOW_GET_SCHEMA: 'ui-window:get-schema',
+
+  // Remote Control
+  REMOTE_CONTROL_GET_STATUS: 'remote-control:get-status',
+  REMOTE_CONTROL_STATUS: 'remote-control:status',
+  REMOTE_CONTROL_REGEN_KEY: 'remote-control:regen-key',
+  REMOTE_ACTIVATE_CONVERSATION: 'remote:activate-conversation',
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

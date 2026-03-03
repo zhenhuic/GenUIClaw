@@ -5,6 +5,7 @@ import type {
   AgentInterruptPayload,
   UIActionPayload,
   IpcAgentEvent,
+  RemoteControlStatus,
 } from '../shared/types/ipc'
 import type { AppSettings, McpServerConfig } from '../shared/types/settings'
 
@@ -32,6 +33,8 @@ const ALLOWED_INVOKE_CHANNELS = new Set([
   IPC_CHANNELS.SKILLS_DELETE,
   IPC_CHANNELS.SKILLS_TOGGLE,
   IPC_CHANNELS.SKILLS_IMPORT,
+  IPC_CHANNELS.REMOTE_CONTROL_GET_STATUS,
+  IPC_CHANNELS.REMOTE_CONTROL_REGEN_KEY,
 ])
 
 function safeInvoke(channel: string, payload?: unknown): Promise<unknown> {
@@ -112,5 +115,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSchema: () => safeInvoke(IPC_CHANNELS.UI_WINDOW_GET_SCHEMA),
     action: (payload: { sessionId: string; renderBlockId: string; actionId: string; data: Record<string, unknown> }) =>
       safeInvoke(IPC_CHANNELS.UI_WINDOW_ACTION, payload),
+  },
+
+  remoteControl: {
+    getStatus: () => safeInvoke(IPC_CHANNELS.REMOTE_CONTROL_GET_STATUS),
+
+    regenKey: () => safeInvoke(IPC_CHANNELS.REMOTE_CONTROL_REGEN_KEY),
+
+    onStatusChange: (callback: (status: RemoteControlStatus) => void): (() => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: RemoteControlStatus): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC_CHANNELS.REMOTE_CONTROL_STATUS, handler)
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.REMOTE_CONTROL_STATUS, handler)
+    },
+
+    onActivateConversation: (
+      callback: (data: { conversationId: string; userMessage: string; sessionId: string }) => void
+    ): (() => void) => {
+      const handler = (
+        _e: Electron.IpcRendererEvent,
+        data: { conversationId: string; userMessage: string; sessionId: string }
+      ): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC_CHANNELS.REMOTE_ACTIVATE_CONVERSATION, handler)
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.REMOTE_ACTIVATE_CONVERSATION, handler)
+    },
   },
 })
