@@ -73,7 +73,7 @@ def fetch_imap(config, limit, search_expr, read_uid, fmt, debug=False):
         # 网易邮箱需 ID 命令，QQ/Gmail 无影响，统一发送以兼容
         try:
             imaplib.Commands["ID"] = "NONAUTH"
-            imap._simple_command("ID", '("name" "kaleidoscope-email" "version" "1.0")')
+            imap._simple_command("ID", '("name" "genuiclaw-email" "version" "1.0")')
         except (KeyError, Exception):
             pass
 

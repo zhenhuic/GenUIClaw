@@ -81,7 +81,7 @@ export function openUIWindow(ctx: UIWindowContext): void {
     height,
     minWidth: 400,
     minHeight: 300,
-    title: 'Kaleidoscope — Dynamic UI',
+    title: 'GenUIClaw — Dynamic UI',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 14, y: 14 },
     backgroundColor: '#ffffff',

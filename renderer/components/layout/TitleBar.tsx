@@ -27,7 +27,7 @@ export function TitleBar({ onSettings }: Props) {
           className="text-sm font-semibold tracking-tight"
           style={{ color: 'var(--text-secondary)' }}
         >
-          Kaleidoscope
+          GenUIClaw
         </span>
       </div>
 

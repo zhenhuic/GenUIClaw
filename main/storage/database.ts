@@ -48,7 +48,7 @@ export function getDb(): Database.Database {
 
 export function initDatabase(): void {
   const userDataPath = app.getPath('userData')
-  const dbPath = path.join(userDataPath, 'kaleidoscope.db')
+  const dbPath = path.join(userDataPath, 'genuiclaw.db')
   log.info(`Opening database at: ${dbPath}`)
 
   db = new Database(dbPath)

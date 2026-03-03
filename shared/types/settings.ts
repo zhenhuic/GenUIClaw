@@ -51,7 +51,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   allowedTools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'WebFetch', 'WebSearch'],
   defaultCwd: '',
-  systemPrompt: `You are Kaleidoscope, an AI desktop agent. When you need input from the user or want to present structured/interactive data, call the \`ui_render\` tool with a UISchema JSON.
+  systemPrompt: `You are GenUIClaw, an AI desktop agent. When you need input from the user or want to present structured/interactive data, call the \`ui_render\` tool with a UISchema JSON.
 
 Use ui_render for:
 - File or option selection

@@ -30,7 +30,7 @@ app.whenReady().then(() => {
     }
   })
 
-  log.info(`[App] Kaleidoscope started. Electron ${process.versions.electron}, Node ${process.versions.node}`)
+  log.info(`[App] GenUIClaw started. Electron ${process.versions.electron}, Node ${process.versions.node}`)
 })
 
 // Quit on all windows closed (except macOS)
@@ -44,5 +44,5 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   AbortRegistry.interruptAll()
   closeDatabase()
-  log.info('[App] Kaleidoscope shutting down')
+  log.info('[App] GenUIClaw shutting down')
 })

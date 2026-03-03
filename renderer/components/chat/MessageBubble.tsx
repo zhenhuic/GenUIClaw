@@ -40,10 +40,10 @@ export function MessageBubble({ message }: Props) {
           className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
           style={{ background: 'var(--accent)', color: '#fff' }}
         >
-          K
+          G
         </div>
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-          Kaleidoscope
+          GenUIClaw
         </span>
       </div>
 

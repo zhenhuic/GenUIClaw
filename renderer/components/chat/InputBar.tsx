@@ -192,7 +192,7 @@ export function InputBar({ onSend, onInterrupt, isRunning }: Props) {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isRunning ? 'Agent is working...' : 'Message Kaleidoscope... (Enter to send, Shift+Enter for newline)'}
+          placeholder={isRunning ? 'Agent is working...' : 'Message GenUIClaw... (Enter to send, Shift+Enter for newline)'}
           disabled={isRunning}
           rows={1}
           className="flex-1 resize-none outline-none text-sm bg-transparent selectable"

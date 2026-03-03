@@ -1,4 +1,4 @@
-# Kaleidoscope — 项目指南
+# GenUIClaw — 项目指南
 
 AI Agent 桌面应用，核心特性是 Generative Dynamic UI：LLM 可以在对话中调用 `ui_render` 工具动态生成交互式 UI 组件（表格、表单、图表等），在独立窗口渲染。支持多模型配置、Skill 技能扩展、MCP 服务器集成。
 
@@ -8,7 +8,7 @@ AI Agent 桌面应用，核心特性是 Generative Dynamic UI：LLM 可以在对
 - **构建**: electron-vite (Vite 5) + Rollup，输出 ESM
 - **AI SDK**: `@mariozechner/pi-agent-core`（Agent 类 + 事件流）、`@mariozechner/pi-ai`（模型注册 + 流式推理）、`@mariozechner/pi-coding-agent`（编码工具集）
 - **状态管理**: Zustand
-- **数据库**: better-sqlite3（WAL 模式，路径 `userData/kaleidoscope.db`）
+- **数据库**: better-sqlite3（WAL 模式，路径 `userData/genuiclaw.db`）
 - **样式**: Tailwind CSS 3 + CSS 变量主题
 - **图表**: Recharts
 

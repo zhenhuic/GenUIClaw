@@ -1,4 +1,4 @@
-# Kaleidoscope
+# GenUIClaw
 
 > AI Agent 桌面应用，核心特性是 **Generative Dynamic UI**——让 LLM 在对话中生成并渲染真正可交互的界面。
 
@@ -6,7 +6,7 @@
 
 ## 概念
 
-大多数 AI 聊天工具只能输出文字。Kaleidoscope 提出了一个不同的思路：**让 LLM 直接"画"出界面**。
+大多数 AI 聊天工具只能输出文字。GenUIClaw 提出了一个不同的思路：**让 LLM 直接"画"出界面**。
 
 当你向 Agent 提问或下达任务时，它不仅能返回文本，还能调用 `ui_render` 工具，实时生成一段 UISchema JSON，由应用在独立窗口中渲染出真正可操作的 UI 组件——表格、图表、表单、进度条、徽章……用户与这些组件的每次交互（点击按钮、提交表单、选择行）都会以结构化数据的形式回传给 Agent，驱动下一轮推理和行动。
 
@@ -16,7 +16,7 @@
 用户提问 → Agent 推理 → 生成 UI → 用户在界面上操作 → Agent 收到反馈 → 继续推理 → ...
 ```
 
-传统聊天界面擅长处理自然语言，而 Kaleidoscope 的 Generative UI 让 Agent 可以在需要时切换到可视化交互，兼顾了自然表达和精确操作的优势。
+传统聊天界面擅长处理自然语言，而 GenUIClaw 的 Generative UI 让 Agent 可以在需要时切换到可视化交互，兼顾了自然表达和精确操作的优势。
 
 ---
 
@@ -76,7 +76,7 @@
 
 ```bash
 git clone <repo-url>
-cd kaleidoscope
+cd GenUIClaw
 npm install
 ```
 
@@ -177,7 +177,7 @@ Settings → MCP Servers，配置符合 [Model Context Protocol](https://modelco
 
 ## 未来前景
 
-Kaleidoscope 代表的是一种对"人机交互"的重新想象：**界面不再是开发者静态编写的，而是 AI 根据上下文即时生成的**。
+GenUIClaw 代表的是一种对"人机交互"的重新想象：**界面不再是开发者静态编写的，而是 AI 根据上下文即时生成的**。
 
 这个方向有若干值得探索的可能性：
 

@@ -19,7 +19,7 @@ export function MainContent() {
         </div>
         <div className="text-center">
           <p className="font-semibold" style={{ color: 'var(--text)' }}>
-            Kaleidoscope
+            GenUIClaw
           </p>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
             Start a conversation or select one from the sidebar
