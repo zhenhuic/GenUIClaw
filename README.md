@@ -1,6 +1,6 @@
 # GenUIClaw
 
-> AI Agent 桌面应用，核心特性是 **Generative Dynamic UI**——让 LLM 在对话中生成并渲染真正可交互的界面。另有 Relay Server 子系统支持通过 Web 浏览器远程控制桌面 Agent。
+> AI Agent 桌面应用，核心特性是 **Generative Dynamic UI**——让 LLM 在对话中生成并渲染真正可交互的界面。
 
 ---
 
@@ -29,7 +29,6 @@
 - **MCP 服务器集成**：通过 Model Context Protocol 连接外部工具和数据源
 - **本地数据存储**：对话历史、设置、技能均持久化到本地 SQLite 数据库
 - **代码执行工具链**：内置编码工具集（Bash、文件读写、代码搜索、网页抓取）
-- **远程控制**：通过 Relay Server + Web 客户端，在浏览器中远程操控桌面 Agent
 - **智能窗口尺寸**：UI 窗口根据组件内容（表格列数/行数、图表、表单字段数）自动估算最佳尺寸
 - **自动标题生成**：首轮对话完成后，LLM 自动生成 3-8 词对话标题
 
@@ -66,7 +65,6 @@
 | 图表 | Recharts |
 | UI 原语 | Radix UI（Dialog, ScrollArea, Select, Switch, Tooltip 等） |
 | Schema 验证 | Zod 4 |
-| Relay Server | Express + WebSocket + JWT + bcryptjs |
 
 ---
 
@@ -178,49 +176,6 @@ Settings → MCP Servers，配置符合 [Model Context Protocol](https://modelco
                                      └─ 用户交互 → IPC: ui:action → Agent 继续推理
 ```
 
-### 远程控制架构
-
-```
-Web 浏览器 ──WebSocket(/web)──→ Relay Server ──WebSocket(/desktop)──→ Electron 桌面应用
-                                     │
-                               REST API + SQLite
-                         (users, agents, conversations, messages)
-```
-
----
-
-## Relay Server 远程控制
-
-`relay-server/` 是一个独立子项目，提供通过 Web 浏览器远程控制桌面 Agent 的能力。
-
-### 功能
-
-- **用户认证**：bcrypt 密码哈希 + JWT（30 天过期）
-- **Agent 配对**：桌面应用通过 pairing key 注册，Web 客户端通过 JWT 连接
-- **双向消息转发**：WebSocket 实时转发 Agent 事件流和用户指令
-- **对话持久化**：远程对话和消息独立存储在 Relay Server 的 SQLite 中
-- **配置同步**：桌面端注册时同步 models 和 skills 配置
-
-### REST API
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/auth/register` | 用户注册 |
-| POST | `/auth/login` | 用户登录，返回 JWT |
-| GET | `/agents` | 获取当前用户的 Agent 列表 |
-| POST | `/agents` | 注册新 Agent |
-| DELETE | `/agents/:id` | 删除 Agent |
-| GET | `/agents/:id/config` | 获取 Agent 配置（models/skills） |
-| GET | `/conversations` | 获取对话列表 |
-| POST | `/conversations` | 创建新对话 |
-| GET | `/conversations/:id/messages` | 获取对话消息 |
-| PATCH | `/conversations/:id/title` | 更新对话标题 |
-
-### WebSocket 端点
-
-- `/desktop` — 桌面应用连接端点，接收 `agent_start` / `agent_interrupt` / `ui_action` 指令
-- `/web?token=<jwt>` — Web 客户端连接端点，发送操作指令，接收 `agent_event` 流
-
 ---
 
 ## 未来前景
@@ -299,8 +254,6 @@ preload/         # contextBridge 安全层
 renderer/        # React SPA（聊天界面、设置、Generative UI 渲染）
 shared/          # 主进程和渲染进程共享的类型和常量
 skills/          # 内置技能目录
-relay-server/    # 远程控制中继服务器（Express + WebSocket + JWT）
-relay-web/       # Web 远程控制客户端（开发中）
 ```
 
 ---

@@ -1,6 +1,6 @@
 # GenUIClaw — 项目指南
 
-AI Agent 桌面应用，核心特性是 Generative Dynamic UI：LLM 可以在对话中调用 `ui_render` 工具动态生成交互式 UI 组件（表格、表单、图表等），在独立窗口渲染。支持多模型配置、Skill 技能扩展、MCP 服务器集成。另有 Relay Server 子系统支持通过 Web 浏览器远程控制桌面 Agent。
+AI Agent 桌面应用，核心特性是 Generative Dynamic UI：LLM 可以在对话中调用 `ui_render` 工具动态生成交互式 UI 组件（表格、表单、图表等），在独立窗口渲染。支持多模型配置、Skill 技能扩展、MCP 服务器集成。
 
 ## 技术栈
 
@@ -13,7 +13,6 @@ AI Agent 桌面应用，核心特性是 Generative Dynamic UI：LLM 可以在对
 - **图表**: Recharts
 - **UI 原语**: Radix UI（Collapsible, Dialog, ScrollArea, Select, Separator, Switch, Tooltip）
 - **Schema 验证**: Zod 4
-- **Relay Server**: Express + WebSocket + JWT + bcryptjs（独立子项目）
 
 ## 命令
 
@@ -98,25 +97,6 @@ skills/                  # 内置 Skills（每个子目录含 SKILL.md）
   generative-ui/         # UI 渲染工具使用指南
   code-review/           # 代码审查指南
   email/                 # 邮件读写（含 IMAP/SMTP Python 脚本 + config.json）
-
-relay-server/            # 远程控制中继服务器（独立子项目）
-  dist/                  # 编译输出
-    index.js             # Express + HTTP + WebSocket 服务器入口
-    db.js                # SQLite 数据库（users, remote_agents, remote_conversations, remote_messages）
-    auth.js              # bcrypt + JWT 认证（注册/登录/验证）
-    routes/
-      auth-routes.js     # POST /auth/register, POST /auth/login
-      agent-routes.js    # GET/POST/DELETE /agents, GET /agents/:id/config
-      conv-routes.js     # GET/POST /conversations, GET /:id/messages, PATCH /:id/title
-      middleware.js      # Bearer token 认证中间件
-    ws/
-      relay.js           # Session 管理 + 消息双向转发 + 内容累积
-      desktop-ws.js      # 桌面端 WebSocket 端点 (/desktop)
-      web-ws.js          # Web 客户端 WebSocket 端点 (/web?token=<jwt>)
-
-relay-web/               # Web 远程控制客户端（WIP）
-  .env                   # VITE_RELAY_WS_URL=ws://localhost:3000
-  src/                   # 前端源码（开发中）
 ```
 
 ## 架构与数据流
@@ -239,35 +219,6 @@ interface ModelConfig {
 - 发送首条 user + assistant 消息给独立 Agent 实例
 - 通过 `CONVERSATION_TITLE_UPDATED` 通道推送标题到渲染进程
 - 用 Set 缓存已生成标题的对话 ID，避免重复生成
-
-### Relay Server 远程控制系统
-
-独立子项目 `relay-server/`，提供通过 Web 浏览器远程控制桌面 Agent 的能力。
-
-**架构**：
-
-```
-Web 浏览器 ──WebSocket(/web)──→ Relay Server ──WebSocket(/desktop)──→ Electron 桌面应用
-                                     │
-                               REST API + SQLite
-                         (users, agents, conversations, messages)
-```
-
-**认证**：bcrypt 密码哈希 + JWT（30 天过期）
-
-**WebSocket 端点**：
-- `/desktop`：桌面应用连接，通过 pairing key 注册 Agent，接收 `agent_start` / `agent_interrupt` / `ui_action` 指令
-- `/web?token=<jwt>`：Web 客户端连接，发送 `start_session` / `interrupt` / `ui_action`，接收 `agent_event` 流
-
-**REST API**：
-- `POST /auth/register` / `POST /auth/login` — 用户认证
-- `GET/POST/DELETE /agents` — Agent 管理
-- `GET /agents/:id/config` — 获取 Agent 配置（models/skills 从桌面同步）
-- `GET/POST /conversations` / `GET /:id/messages` / `PATCH /:id/title` — 对话管理
-
-**数据库表**：`users` / `remote_agents` / `remote_conversations` / `remote_messages`
-
-**桌面端配置同步**：桌面注册时发送 `models` 和 `skills` 数组，持久化到 agent 记录的 `config_json`。
 
 ## 关键类型
 
