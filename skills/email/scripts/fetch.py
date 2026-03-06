@@ -21,8 +21,7 @@ def load_config():
     config_path = os.path.join(skill_dir, "config.json")
     if not os.path.exists(config_path):
         print(
-            f"Error: config.json not found at {config_path}"
-            "Copy config.example.json to config.json and fill in credentials.",
+            f"Error: config.json not found at {config_path}\nCopy config.example.json to config.json and fill in credentials.",
             file=sys.stderr,
         )
         sys.exit(2)

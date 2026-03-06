@@ -3,12 +3,13 @@ import { join } from 'path'
 import log from 'electron-log'
 import type { UISchema } from '../shared/types/ui-schema'
 import { IPC_CHANNELS } from '../shared/constants/ipc-channels'
+import type { TransportSender } from './remote/transport'
 
 interface UIWindowContext {
   sessionId: string
   renderBlockId: string
   schema: UISchema
-  parentSender: Electron.WebContents
+  parentSender: TransportSender
 }
 
 const openWindows = new Map<string, BrowserWindow>()

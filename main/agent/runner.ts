@@ -1,8 +1,9 @@
 import { Agent } from '@mariozechner/pi-agent-core'
 import type { AgentEvent } from '@mariozechner/pi-agent-core'
 import type { Model } from '@mariozechner/pi-ai'
-import type { WebContents } from 'electron'
 import log from 'electron-log'
+import type { TransportSender } from '../remote/transport'
+import { ElectronTransportSender } from '../remote/transport'
 import type { IpcAgentEvent } from '../../shared/types/ipc'
 import type { MessageContentBlock } from '../../shared/types/conversation'
 import type { McpServerConfig as AppMcpServerConfig, ModelConfig, SkillConfig } from '../../shared/types/settings'
@@ -24,7 +25,7 @@ export interface AgentRunOptions {
   mcpServers: Record<string, AppMcpServerConfig>
   cwd?: string
   systemPrompt?: string
-  sender: WebContents
+  sender: TransportSender
   modelId?: string
   skillIds?: string[]
 }
@@ -157,12 +158,16 @@ export async function runAgentSession(opts: AgentRunOptions): Promise<void> {
           emit(ipcEvent)
 
           if (ipcEvent.type === 'ui_render') {
-            openUIWindow({
-              sessionId: opts.sessionId,
-              renderBlockId: ipcEvent.renderBlockId,
-              schema: ipcEvent.schema,
-              parentSender: opts.sender,
-            })
+            // Only open a standalone Electron window for local desktop clients.
+            // Remote clients receive the schema via the push event above.
+            if (opts.sender instanceof ElectronTransportSender) {
+              openUIWindow({
+                sessionId: opts.sessionId,
+                renderBlockId: ipcEvent.renderBlockId,
+                schema: ipcEvent.schema,
+                parentSender: opts.sender,
+              })
+            }
           }
         }
 

@@ -8,6 +8,8 @@ import { AbortRegistry } from '../agent/abort-controller'
 import { validateSender } from '../security/sender-validator'
 import { saveMessage } from '../storage/messages'
 import { generateConversationTitle } from '../agent/title-generator'
+import { ElectronTransportSender } from '../remote/transport'
+import type { TransportSender } from '../remote/transport'
 
 export function registerAgentHandlers(): void {
   // Start a new agent session — non-blocking, responses stream via AGENT_STREAM_EVENT
@@ -29,6 +31,8 @@ export function registerAgentHandlers(): void {
 
       const mainWindow = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
 
+      const senderTransport = new ElectronTransportSender(event.sender)
+
       setImmediate(async () => {
         await runAgentSession({
           sessionId,
@@ -38,12 +42,16 @@ export function registerAgentHandlers(): void {
           mcpServers,
           cwd,
           systemPrompt,
-          sender: event.sender,
+          sender: senderTransport,
           modelId,
           skillIds,
         })
 
-        generateConversationTitle(conversationId, modelId, mainWindow ?? null)
+        const titleSenders: TransportSender[] = []
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          titleSenders.push(new ElectronTransportSender(mainWindow.webContents))
+        }
+        generateConversationTitle(conversationId, modelId, titleSenders)
       })
 
       return { data: { sessionId, status: 'started' } }
@@ -84,7 +92,7 @@ export function registerAgentHandlers(): void {
           mcpServers: agentContext.mcpServers,
           cwd: agentContext.cwd,
           systemPrompt: agentContext.systemPrompt,
-          sender: event.sender,
+          sender: new ElectronTransportSender(event.sender),
           modelId: agentContext.modelId,
           skillIds: agentContext.skillIds,
         })

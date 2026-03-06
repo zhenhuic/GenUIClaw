@@ -33,6 +33,11 @@ export interface SkillConfig {
   source: 'builtin' | 'user'
 }
 
+export interface RemoteAccessConfig {
+  enabled: boolean
+  relayUrl: string
+}
+
 export interface AppSettings {
   models: ModelConfig[]
   skillStates: Record<string, boolean>
@@ -43,6 +48,7 @@ export interface AppSettings {
   mcpServers: Record<string, McpServerConfig>
   fontSize: 'sm' | 'md' | 'lg'
   showToolDetails: boolean
+  remoteAccess: RemoteAccessConfig
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -63,4 +69,8 @@ Do NOT ask for input in plain text when a UI component is more appropriate. The 
   mcpServers: {},
   fontSize: 'md',
   showToolDetails: true,
+  remoteAccess: {
+    enabled: false,
+    relayUrl: 'wss://relay.genuiclaw.example.com',
+  },
 }
