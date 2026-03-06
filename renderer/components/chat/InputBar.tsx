@@ -15,6 +15,7 @@ export function InputBar({ onSend, onInterrupt, isRunning }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [showSkillsDropdown, setShowSkillsDropdown] = useState(false)
   const skillsDropdownRef = useRef<HTMLDivElement>(null)
+  const isComposingRef = useRef(false)
 
   const { settings } = useSettingsStore()
   const {

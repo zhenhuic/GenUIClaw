@@ -1,6 +1,6 @@
 # GenUIClaw
 
-> AI Agent 桌面应用，核心特性是 **Generative Dynamic UI**——让 LLM 在对话中生成并渲染真正可交互的界面。
+> AI Agent 桌面应用，核心特性是 **Generative Dynamic UI**——让 LLM 在对话中生成并渲染真正可交互的界面。另有 Relay Server 子系统支持通过 Web 浏览器远程控制桌面 Agent。
 
 ---
 
@@ -10,7 +10,7 @@
 
 当你向 Agent 提问或下达任务时，它不仅能返回文本，还能调用 `ui_render` 工具，实时生成一段 UISchema JSON，由应用在独立窗口中渲染出真正可操作的 UI 组件——表格、图表、表单、进度条、徽章……用户与这些组件的每次交互（点击按钮、提交表单、选择行）都会以结构化数据的形式回传给 Agent，驱动下一轮推理和行动。
 
-这形成了一个 **对话 × 界面** 的闭环：
+这形成了一个 **对话 x 界面** 的闭环：
 
 ```
 用户提问 → Agent 推理 → 生成 UI → 用户在界面上操作 → Agent 收到反馈 → 继续推理 → ...
@@ -28,7 +28,10 @@
 - **Skills 技能系统**：模块化技能扩展，内置代码审查、邮件读写、Generative UI 指南，支持用户自定义导入
 - **MCP 服务器集成**：通过 Model Context Protocol 连接外部工具和数据源
 - **本地数据存储**：对话历史、设置、技能均持久化到本地 SQLite 数据库
-- **代码执行工具链**：内置编码工具集（文件读写、命令执行、代码分析）
+- **代码执行工具链**：内置编码工具集（Bash、文件读写、代码搜索、网页抓取）
+- **远程控制**：通过 Relay Server + Web 客户端，在浏览器中远程操控桌面 Agent
+- **智能窗口尺寸**：UI 窗口根据组件内容（表格列数/行数、图表、表单字段数）自动估算最佳尺寸
+- **自动标题生成**：首轮对话完成后，LLM 自动生成 3-8 词对话标题
 
 ---
 
@@ -37,16 +40,16 @@
 | 组件 | 用途 |
 |------|------|
 | `table` | 数据表格，支持排序、分页、行选择 |
-| `form` | 结构化输入表单，支持文本/数字/选择/复选框/文件等字段 |
+| `form` | 结构化输入表单，支持文本/数字/选择/复选框/文件/日期等字段 |
 | `chart` | 数据可视化，支持折线图、柱状图、面积图、饼图、散点图 |
 | `card` | 内容卡片，可嵌套子组件，支持点击回调 |
-| `button` | 动作按钮，支持确认弹窗和禁用状态 |
-| `select` | 下拉选择，即时触发回调 |
+| `button` | 动作按钮，支持确认弹窗、禁用状态和多种样式变体 |
+| `select` | 下拉选择，支持单选/多选，即时触发回调 |
 | `progress` | 进度条，带状态指示（进行中/成功/错误） |
-| `badge` | 状态标签 |
-| `text` | 富文本/Markdown 内容块 |
-| `container` | 布局容器，支持横向/纵向排列 |
-| `file_picker` | 文件选择对话框 |
+| `badge` | 状态标签，支持多种颜色 |
+| `text` | 富文本内容块，支持 heading/body/caption/code 变体 |
+| `container` | 布局容器，支持横向/纵向排列，可设置间距 |
+| `file_picker` | 文件选择对话框，支持文件类型过滤和多选 |
 
 ---
 
@@ -61,7 +64,9 @@
 | 数据库 | better-sqlite3（WAL 模式） |
 | 样式 | Tailwind CSS 3 + CSS 变量主题 |
 | 图表 | Recharts |
-| UI 组件 | Radix UI |
+| UI 原语 | Radix UI（Dialog, ScrollArea, Select, Switch, Tooltip 等） |
+| Schema 验证 | Zod 4 |
+| Relay Server | Express + WebSocket + JWT + bcryptjs |
 
 ---
 
@@ -151,7 +156,7 @@ Settings → Skills → 切换开关即可启用/禁用技能。
 
 ## MCP 服务器
 
-Settings → MCP Servers，配置符合 [Model Context Protocol](https://modelcontextprotocol.io) 标准的外部工具服务器，扩展 Agent 可调用的工具集。
+Settings → MCP Servers，配置符合 [Model Context Protocol](https://modelcontextprotocol.io) 标准的外部工具服务器（支持 stdio 和 SSE 两种连接方式），扩展 Agent 可调用的工具集。
 
 ---
 
@@ -172,6 +177,49 @@ Settings → MCP Servers，配置符合 [Model Context Protocol](https://modelco
                                 └─ UIRenderer 递归渲染 UISchema
                                      └─ 用户交互 → IPC: ui:action → Agent 继续推理
 ```
+
+### 远程控制架构
+
+```
+Web 浏览器 ──WebSocket(/web)──→ Relay Server ──WebSocket(/desktop)──→ Electron 桌面应用
+                                     │
+                               REST API + SQLite
+                         (users, agents, conversations, messages)
+```
+
+---
+
+## Relay Server 远程控制
+
+`relay-server/` 是一个独立子项目，提供通过 Web 浏览器远程控制桌面 Agent 的能力。
+
+### 功能
+
+- **用户认证**：bcrypt 密码哈希 + JWT（30 天过期）
+- **Agent 配对**：桌面应用通过 pairing key 注册，Web 客户端通过 JWT 连接
+- **双向消息转发**：WebSocket 实时转发 Agent 事件流和用户指令
+- **对话持久化**：远程对话和消息独立存储在 Relay Server 的 SQLite 中
+- **配置同步**：桌面端注册时同步 models 和 skills 配置
+
+### REST API
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/auth/register` | 用户注册 |
+| POST | `/auth/login` | 用户登录，返回 JWT |
+| GET | `/agents` | 获取当前用户的 Agent 列表 |
+| POST | `/agents` | 注册新 Agent |
+| DELETE | `/agents/:id` | 删除 Agent |
+| GET | `/agents/:id/config` | 获取 Agent 配置（models/skills） |
+| GET | `/conversations` | 获取对话列表 |
+| POST | `/conversations` | 创建新对话 |
+| GET | `/conversations/:id/messages` | 获取对话消息 |
+| PATCH | `/conversations/:id/title` | 更新对话标题 |
+
+### WebSocket 端点
+
+- `/desktop` — 桌面应用连接端点，接收 `agent_start` / `agent_interrupt` / `ui_action` 指令
+- `/web?token=<jwt>` — Web 客户端连接端点，发送操作指令，接收 `agent_event` 流
 
 ---
 
@@ -221,6 +269,7 @@ GenUIClaw 代表的是一种对"人机交互"的重新想象：**界面不再是
 1. `shared/types/ui-schema.ts` — 添加组件接口，加入 `UIComponent` 联合类型
 2. `renderer/components/generative-ui/components/` — 创建 React 组件
 3. `renderer/components/generative-ui/registry.ts` — 注册组件类型映射
+4. （可选）`main/agent/schema-normalizer.ts` — 添加该组件类型的规范化逻辑
 
 ### 添加新的 Agent 工具
 
@@ -234,16 +283,24 @@ GenUIClaw 代表的是一种对"人机交互"的重新想象：**界面不再是
 3. `preload/index.ts` — 加入白名单并暴露 API
 4. `shared/types/ipc.ts` — 更新 `ElectronAPI` 类型
 
+### 添加新的 Skill
+
+1. 在项目根 `skills/` 下创建子目录，内含 `SKILL.md`
+2. builtin 技能自动被 `listAllSkills()` 发现
+3. user 技能通过 Settings → Skills → Import 导入
+
 ---
 
 ## 项目结构速览
 
 ```
-main/          # Electron 主进程（Agent 引擎、IPC、数据库、工具）
-preload/       # contextBridge 安全层
-renderer/      # React SPA（聊天界面、设置、Generative UI 渲染）
-shared/        # 主进程和渲染进程共享的类型和常量
-skills/        # 内置技能目录
+main/            # Electron 主进程（Agent 引擎、IPC、数据库、工具）
+preload/         # contextBridge 安全层
+renderer/        # React SPA（聊天界面、设置、Generative UI 渲染）
+shared/          # 主进程和渲染进程共享的类型和常量
+skills/          # 内置技能目录
+relay-server/    # 远程控制中继服务器（Express + WebSocket + JWT）
+relay-web/       # Web 远程控制客户端（开发中）
 ```
 
 ---
