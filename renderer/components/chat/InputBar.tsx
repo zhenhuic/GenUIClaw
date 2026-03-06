@@ -64,7 +64,7 @@ export function InputBar({ onSend, onInterrupt, isRunning }: Props) {
   }, [value, isRunning, onSend])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
       handleSend()
     }
