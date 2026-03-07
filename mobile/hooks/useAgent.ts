@@ -8,6 +8,7 @@ import { useAgentStore } from '../store/agent-store'
 import { useConversationStore } from '../store/conversation-store'
 import { useSettingsStore } from '../store/settings-store'
 import type { AgentStartPayload } from '@shared/types/ipc'
+import { generateUUID } from '../utils/uuid'
 
 export function useAgentStreamSubscription() {
   const handleAgentEvent = useConversationStore((s) => s.handleAgentEvent)
@@ -23,7 +24,7 @@ export function useAgentStreamSubscription() {
         const { selectedModelId, selectedSkillIds } = useAgentStore.getState()
 
         if (activeConversationId) {
-          const sessionId = crypto.randomUUID()
+          const sessionId = generateUUID()
           window.electronAPI.agent.uiAction({
             sessionId,
             conversationId: activeConversationId,
@@ -71,7 +72,7 @@ export function useAgent() {
         conversationId = conv.id
       }
 
-      const sessionId = crypto.randomUUID()
+      const sessionId = generateUUID()
       addUserMessage(text, sessionId)
 
       const payload: AgentStartPayload = {
@@ -102,7 +103,7 @@ export function useAgent() {
       if (!activeConversationId) return
 
       await window.electronAPI.agent.uiAction({
-        sessionId: crypto.randomUUID(),
+        sessionId: generateUUID(),
         conversationId: activeConversationId,
         renderBlockId,
         actionId,

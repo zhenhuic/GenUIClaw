@@ -52,6 +52,7 @@ export class RelayClient {
   /**
    * Connect to the relay server and register a room.
    * Resolves with the device code once the relay confirms registration.
+   * On reconnect, the same device code is reused so mobile clients stay connected.
    */
   connect(): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -60,7 +61,10 @@ export class RelayClient {
         this.ws.close()
       }
 
-      this.deviceCode = generateDeviceCode()
+      // Only generate a new code on first connect; reuse on reconnect
+      if (!this.deviceCode) {
+        this.deviceCode = generateDeviceCode()
+      }
       const token = createToken(this.secret)
 
       // relayUrl should be the server root (e.g. ws://localhost:9527).
@@ -158,6 +162,30 @@ export class RelayClient {
     }
     this.deviceCode = ''
     log.info('[Relay] Disconnected')
+  }
+
+  /**
+   * Regenerate the device code: disconnect, generate a new code, reconnect.
+   * Old mobile sessions using the previous code will be invalidated.
+   * Returns the new device code.
+   */
+  async regenerate(): Promise<string> {
+    // Disconnect current session (clears device code)
+    this.stopHeartbeat()
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+    if (this.ws) {
+      this.ws.removeAllListeners()
+      this.ws.close()
+      this.ws = null
+    }
+    // Force a new code on next connect
+    this.deviceCode = ''
+    this.closed = false
+    log.info('[Relay] Regenerating device code...')
+    return this.connect()
   }
 
   // ---- Internal ----

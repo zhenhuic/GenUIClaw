@@ -34,12 +34,11 @@ config file content:
 
 ## 执行说明
 
-**重要**：执行 Python 脚本前，必须先 `cd` 到工程目录下的 `skills/email` 目录：
+**重要**：脚本通过 `__file__` 自动定位 `config.json`，可从任意目录执行。推荐使用绝对路径或从工程根目录运行：
 
 ```bash
-cd skills/email   # 或在工程根目录下: cd <项目根路径>/skills/email
-python scripts/fetch.py --limit 10
-python scripts/send.py --to "..." --subject "..." --body "..."
+python skills/email/scripts/fetch.py --limit 10
+python skills/email/scripts/send.py --to "..." --subject "..." --body "..."
 ```
 
 ## Fetching Emails
@@ -53,11 +52,18 @@ python scripts/fetch.py --limit 10
 # Use POP3 instead of IMAP
 python scripts/fetch.py --protocol pop3 --limit 20
 
-# Search by subject
+# Search by subject (converted to IMAP SUBJECT command)
 python scripts/fetch.py --search "subject:report"
 
 # Search by sender
 python scripts/fetch.py --search "from:boss@example.com"
+
+# Search by date range
+python scripts/fetch.py --search "since:2024-01-01"
+python scripts/fetch.py --search "before:2024-06-01"
+
+# Combined search
+python scripts/fetch.py --search "from:boss@example.com subject:report since:2024-01-01"
 
 # Output as JSON (default) or table
 python scripts/fetch.py --limit 5 --format table
@@ -83,11 +89,10 @@ python scripts/send.py --to "user@ex.com" --subject "Report" --body "<h1>Report<
 
 ## Workflow
 
-1. **进入 skill 目录**: `cd skills/email`（从工程根目录执行）
-2. **Check if config exists**: `[ -f config.json ] || echo "Config missing"`
-3. **Fetch emails**: Run `python scripts/fetch.py` with `--limit` and optional `--search`
-4. **Read specific email**: Use `--read <uid>` with the UID from list output
-5. **Send email**: Run `python scripts/send.py` with `--to`, `--subject`, `--body`
+1. **Check if config exists**: `[ -f skills/email/config.json ] || echo "Config missing"`
+2. **Fetch emails**: Run `python skills/email/scripts/fetch.py` with `--limit` and optional `--search`
+3. **Read specific email**: Use `--read <uid>` with the UID from list output
+4. **Send email**: Run `python skills/email/scripts/send.py` with `--to`, `--subject`, `--body`
 
 ## Error Handling
 

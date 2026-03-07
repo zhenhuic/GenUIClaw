@@ -16,6 +16,9 @@ interface ConnectionState {
 
   connect: (relayUrl: string, deviceCode: string) => Promise<void>
   disconnect: () => void
+
+  /** Try to auto-connect using the `?token=` URL parameter. Returns true if a token was found. */
+  tryAutoConnect: () => boolean
 }
 
 /**
@@ -65,5 +68,23 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   disconnect: () => {
     relayClient.disconnect()
     set({ status: 'disconnected', deviceCode: '', error: null })
+  },
+
+  tryAutoConnect: () => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const token = params.get('token')
+      if (!token) return false
+
+      const cleaned = token.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+      if (cleaned.length < 4 || cleaned.length > 10) return false
+
+      const relayUrl = deriveRelayUrl()
+      // Fire-and-forget: connect in background
+      get().connect(relayUrl, cleaned)
+      return true
+    } catch {
+      return false
+    }
   },
 }))

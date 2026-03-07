@@ -21,6 +21,14 @@ export default function App() {
     return cleanup
   }, [])
 
+  // Refresh conversation list when remote client creates/deletes conversations
+  useEffect(() => {
+    const cleanup = window.electronAPI.conversations.onChanged(() => {
+      useConversationStore.getState().loadConversations()
+    })
+    return cleanup
+  }, [])
+
   // Apply theme on load
   useEffect(() => {
     const root = document.documentElement

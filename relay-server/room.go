@@ -74,7 +74,8 @@ func (rm *RoomManager) RoomCount() int {
 	return len(rm.rooms)
 }
 
-// cleanup periodically removes rooms older than 24 hours with no mobile connection.
+// cleanup periodically removes rooms with no active desktop connection older than 24 hours.
+// Rooms with an active desktop connection are never cleaned up — they remain valid indefinitely.
 func (rm *RoomManager) cleanup() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
@@ -83,7 +84,8 @@ func (rm *RoomManager) cleanup() {
 		now := time.Now()
 		for code, room := range rm.rooms {
 			room.mu.Lock()
-			idle := room.MobileConn == nil && now.Sub(room.CreatedAt) > 24*time.Hour
+			// Only clean up rooms where the desktop is gone (nil) and idle for 24h
+			idle := room.DesktopConn == nil && now.Sub(room.CreatedAt) > 24*time.Hour
 			room.mu.Unlock()
 			if idle {
 				room.Close()

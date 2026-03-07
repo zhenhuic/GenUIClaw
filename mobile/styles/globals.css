@@ -169,6 +169,17 @@ button:active:not(:disabled), [role="button"]:active {
   opacity: 0.8;
 }
 
+/* ---- Mobile Header: always visible above keyboard ---- */
+
+.mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  /* Prevent header from being pushed off-screen by keyboard on some browsers */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
 /* ---- Connection Status Bar ---- */
 
 .connection-bar {

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # coding: utf-8
 """
 Fetch/list emails via IMAP or POP3. Config from skills/email/config.json.
@@ -16,17 +17,67 @@ from email.parser import BytesParser
 from email.utils import parsedate_to_datetime
 
 
+SNIPPET_MAX_LEN = 200
+
+
 def load_config():
     skill_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     config_path = os.path.join(skill_dir, "config.json")
     if not os.path.exists(config_path):
-        print(
-            f"Error: config.json not found at {config_path}\nCopy config.example.json to config.json and fill in credentials.",
-            file=sys.stderr,
-        )
+        error_msg = "Error: config.json not found at {}".format(config_path)
+        error_msg += "\nCopy config.example.json to config.json and fill in credentials."
+        print(error_msg, file=sys.stderr)
         sys.exit(2)
     with open(config_path, encoding="utf-8") as f:
         return json.load(f)
+
+
+def parse_search_expr(search: str) -> str:
+    """Convert friendly search syntax to IMAP search commands.
+
+    Supported formats:
+        subject:keyword   -> SUBJECT "keyword"
+        from:addr         -> FROM "addr"
+        to:addr           -> TO "addr"
+        since:2024-01-01  -> SINCE 01-Jan-2024
+        before:2024-01-01 -> BEFORE 01-Jan-2024
+        raw IMAP expr     -> passed through as-is (e.g. UNSEEN, ALL)
+    """
+    if not search or search.upper() == "ALL":
+        return "ALL"
+
+    parts = []
+    for token in search.split():
+        if ":" in token and not token.startswith("("):
+            key, _, value = token.partition(":")
+            key_lower = key.lower()
+            if key_lower == "subject":
+                parts.append(f'SUBJECT "{value}"')
+            elif key_lower == "from":
+                parts.append(f'FROM "{value}"')
+            elif key_lower == "to":
+                parts.append(f'TO "{value}"')
+            elif key_lower in ("since", "after"):
+                parts.append(f'SINCE {_format_imap_date(value)}')
+            elif key_lower in ("before",):
+                parts.append(f'BEFORE {_format_imap_date(value)}')
+            else:
+                # Unknown prefix, pass through
+                parts.append(token)
+        else:
+            parts.append(token)
+
+    return " ".join(parts) if parts else "ALL"
+
+
+def _format_imap_date(date_str: str) -> str:
+    """Convert YYYY-MM-DD to DD-Mon-YYYY for IMAP SINCE/BEFORE."""
+    import datetime
+    try:
+        dt = datetime.date.fromisoformat(date_str)
+        return dt.strftime("%d-%b-%Y")
+    except (ValueError, TypeError):
+        return date_str
 
 
 def get_text_body(msg) -> str:
@@ -55,6 +106,14 @@ def get_text_body(msg) -> str:
     return body or ""
 
 
+def _make_snippet(body: str) -> str:
+    """Create a consistent snippet from body text."""
+    text = body.strip()
+    if len(text) > SNIPPET_MAX_LEN:
+        return text[:SNIPPET_MAX_LEN] + "..."
+    return text
+
+
 def fetch_imap(config, limit, search_expr, read_uid, fmt, debug=False):
     import imaplib
 
@@ -69,11 +128,11 @@ def fetch_imap(config, limit, search_expr, read_uid, fmt, debug=False):
     with klass(host, port, timeout=30) as imap:
         imap.login(email_addr, password)
 
-        # 网易邮箱需 ID 命令，QQ/Gmail 无影响，统一发送以兼容
+        # Some servers (e.g. 163/NetEase) require ID command; harmless for QQ/Gmail
         try:
             imaplib.Commands["ID"] = "NONAUTH"
             imap._simple_command("ID", '("name" "genuiclaw-email" "version" "1.0")')
-        except (KeyError, Exception):
+        except Exception:
             pass
 
         if debug:
@@ -84,7 +143,6 @@ def fetch_imap(config, limit, search_expr, read_uid, fmt, debug=False):
             except Exception as e:
                 print(f"[DEBUG] LIST: {e}", file=sys.stderr)
 
-        # 使用 INBOX（RFC 标准名），避免部分服务器对 "inbox" 大小写敏感
         select_typ, select_data = imap.select("INBOX", readonly=True)
         if debug:
             print(f"[DEBUG] SELECT: typ={select_typ} data={select_data}", file=sys.stderr)
@@ -92,68 +150,54 @@ def fetch_imap(config, limit, search_expr, read_uid, fmt, debug=False):
             print(f"Error: Cannot select INBOX: {select_typ} {select_data}", file=sys.stderr)
             sys.exit(5)
 
+        # --- Read a single email by UID ---
         if read_uid is not None:
             typ, data = imap.uid("FETCH", str(read_uid), "(RFC822)")
             if typ == "OK" and data and data[0] is None:
-                # QQ 等服务器 UID FETCH 返回 None，改用 sequence-number FETCH
-                styp, sdata = imap.search(None, "ALL")
-                if styp == "OK" and sdata and sdata[0]:
-                    uids_all = sdata[0].split()
-                    try:
-                        idx = next(i for i, x in enumerate(uids_all) if int(x) == read_uid)
-                        seq = idx + 1
-                        typ, data = imap.fetch(str(seq), "(RFC822)")
-                    except (ValueError, IndexError, StopIteration):
-                        pass
+                # QQ/Tencent servers may return None for UID FETCH; fall back to sequence search
+                typ, data = _uid_fallback_fetch(imap, read_uid)
             if typ != "OK" or not data or data[0] is None:
                 print(f"Error: Email with UID {read_uid} not found.", file=sys.stderr)
                 sys.exit(3)
             raw = data[0][1] if isinstance(data[0], tuple) else data[0]
             msg = BytesParser(policy=policy.default).parsebytes(raw)
-            date_h = msg.get("Date", "")
-            try:
-                dt = parsedate_to_datetime(date_h)
-                date_str = dt.isoformat()
-            except Exception:
-                date_str = date_h
-
-            entry = {
-                "uid": read_uid,
-                "from": msg.get("From", ""),
-                "to": msg.get("To", ""),
-                "subject": msg.get("Subject", ""),
-                "date": date_str,
-                "body": get_text_body(msg),
-            }
+            entry = _parse_email_entry(msg, uid=read_uid, full_body=True)
             print(json.dumps(entry, ensure_ascii=False, indent=2))
             return
 
-        if search_expr:
-            typ, data = imap.search(None, search_expr)
-        else:
-            typ, data = imap.search(None, "ALL")
+        # --- List emails ---
+        imap_search = parse_search_expr(search_expr)
+        if debug:
+            print(f"[DEBUG] IMAP SEARCH command: {imap_search}", file=sys.stderr)
+        typ, data = imap.search(None, imap_search)
         if debug:
             raw_uids = data[0] if data else b""
-            print(f"[DEBUG] SEARCH {search_expr!r}: typ={typ} raw_uids={raw_uids!r} len={len(data)}", file=sys.stderr)
+            print(f"[DEBUG] SEARCH result: typ={typ} count={len(raw_uids.split()) if raw_uids else 0}", file=sys.stderr)
         if typ != "OK":
             print("Error: Search failed.", file=sys.stderr)
             sys.exit(4)
-        uids = (data[0].split() if data and data[0] else [])
-        uids = list(reversed(uids))[:limit] if uids else []
 
-        if not uids:
+        all_uids = data[0].split() if data and data[0] else []
+        # Most recent first, limited
+        selected_uids = list(reversed(all_uids))[:limit] if all_uids else []
+
+        if not selected_uids:
             if debug:
                 print("[DEBUG] No UIDs from SEARCH. Inbox may be empty or server returned nothing.", file=sys.stderr)
             print(json.dumps([]))
             return
 
+        # Build a UID -> sequence-number map for fallback
+        uid_to_seq = {uid: idx + 1 for idx, uid in enumerate(all_uids)}
+
         results = []
-        for uid in uids:
-            # QQ/腾讯等服务器对 UID FETCH 返回 data[0]=None，需回退到 sequence-number FETCH
+        for uid in selected_uids:
             typ, data = imap.uid("FETCH", uid, "(RFC822)")
             if typ == "OK" and data and data[0] is None:
-                seq = uids.index(uid) + 1
-                typ, data = imap.fetch(str(seq), "(RFC822)")
+                # Fallback: use pre-computed sequence number from full UID list
+                seq = uid_to_seq.get(uid)
+                if seq is not None:
+                    typ, data = imap.fetch(str(seq), "(RFC822)")
             if typ != "OK" or not data or data[0] is None:
                 continue
             if isinstance(data[0], tuple) and len(data[0]) >= 2:
@@ -163,29 +207,55 @@ def fetch_imap(config, limit, search_expr, read_uid, fmt, debug=False):
             else:
                 continue
             msg = BytesParser(policy=policy.default).parsebytes(raw)
-            date_h = msg.get("Date", "")
-            try:
-                dt = parsedate_to_datetime(date_h)
-                date_str = dt.isoformat()
-            except Exception:
-                date_str = date_h
-            body = get_text_body(msg)
-            snippet = (body[:200] + "...") if len(body) > 200 else body
-            results.append(
-                {
-                    "uid": int(uid),
-                    "from": msg.get("From", ""),
-                    "to": msg.get("To", ""),
-                    "subject": msg.get("Subject", ""),
-                    "date": date_str,
-                    "snippet": snippet.strip()[:150],
-                }
-            )
+            entry = _parse_email_entry(msg, uid=int(uid), full_body=False)
+            results.append(entry)
 
         if fmt == "table":
             _print_table(results)
         else:
             print(json.dumps(results, ensure_ascii=False, indent=2))
+
+
+def _uid_fallback_fetch(imap, target_uid: int):
+    """Fallback for servers that don't support UID FETCH properly.
+    Searches ALL to find the sequence number for the given UID."""
+    styp, sdata = imap.search(None, "ALL")
+    if styp == "OK" and sdata and sdata[0]:
+        uids_all = sdata[0].split()
+        try:
+            idx = next(i for i, x in enumerate(uids_all) if int(x) == target_uid)
+            seq = idx + 1
+            return imap.fetch(str(seq), "(RFC822)")
+        except (ValueError, IndexError, StopIteration):
+            pass
+    return "NO", None
+
+
+def _parse_email_entry(msg, uid=None, num=None, full_body=False) -> dict:
+    """Extract structured data from a parsed email message."""
+    date_h = msg.get("Date", "")
+    try:
+        dt = parsedate_to_datetime(date_h)
+        date_str = dt.isoformat()
+    except Exception:
+        date_str = date_h
+
+    entry = {}
+    if uid is not None:
+        entry["uid"] = uid
+    if num is not None:
+        entry["num"] = num
+    entry["from"] = msg.get("From", "")
+    entry["to"] = msg.get("To", "")
+    entry["subject"] = msg.get("Subject", "")
+    entry["date"] = date_str
+
+    body = get_text_body(msg)
+    if full_body:
+        entry["body"] = body
+    else:
+        entry["snippet"] = _make_snippet(body)
+    return entry
 
 
 def fetch_pop3(config, limit, read_num, fmt):
@@ -209,54 +279,25 @@ def fetch_pop3(config, limit, read_num, fmt):
                 print(f"Error: Message number {read_num} out of range (1-{num_messages}).", file=sys.stderr)
                 sys.exit(3)
             resp, lines, _ = pop.retr(read_num)
-            if resp.decode() != "+OK":
-                print("Error: Failed to retrieve message.", file=sys.stderr)
-                sys.exit(4)
             raw = b"\r\n".join(lines)
             msg = BytesParser(policy=policy.default).parsebytes(raw)
-            date_h = msg.get("Date", "")
-            try:
-                dt = parsedate_to_datetime(date_h)
-                date_str = dt.isoformat()
-            except Exception:
-                date_str = date_h
-            entry = {
-                "num": read_num,
-                "from": msg.get("From", ""),
-                "to": msg.get("To", ""),
-                "subject": msg.get("Subject", ""),
-                "date": date_str,
-                "body": get_text_body(msg),
-            }
+            entry = _parse_email_entry(msg, num=read_num, full_body=True)
             print(json.dumps(entry, ensure_ascii=False, indent=2))
             return
 
         start = max(1, num_messages - limit + 1)
         results = []
         for i in range(num_messages, start - 1, -1):
-            resp, lines, _ = pop.retr(i)
-            if resp.decode() != "+OK":
-                continue
+            # Use TOP to fetch headers + first 0 lines of body (avoids full download)
+            try:
+                resp, lines, _ = pop.top(i, 0)
+            except Exception:
+                # Fallback to RETR if server doesn't support TOP
+                resp, lines, _ = pop.retr(i)
             raw = b"\r\n".join(lines)
             msg = BytesParser(policy=policy.default).parsebytes(raw)
-            date_h = msg.get("Date", "")
-            try:
-                dt = parsedate_to_datetime(date_h)
-                date_str = dt.isoformat()
-            except Exception:
-                date_str = date_h
-            body = get_text_body(msg)
-            snippet = (body[:200] + "...") if len(body) > 200 else body
-            results.append(
-                {
-                    "num": i,
-                    "from": msg.get("From", ""),
-                    "to": msg.get("To", ""),
-                    "subject": msg.get("Subject", ""),
-                    "date": date_str,
-                    "snippet": snippet.strip()[:150],
-                }
-            )
+            entry = _parse_email_entry(msg, num=i, full_body=False)
+            results.append(entry)
 
         if fmt == "table":
             _print_table(results)
@@ -290,7 +331,7 @@ def main():
     )
     ap.add_argument("--protocol", choices=["imap", "pop3"], default="imap", help="Protocol (default: imap)")
     ap.add_argument("--limit", type=int, default=10, help="Max emails to list (default: 10)")
-    ap.add_argument("--search", type=str, help="IMAP search expression (e.g. subject:report, from:user@ex.com)")
+    ap.add_argument("--search", type=str, help="Search expression (e.g. subject:report, from:user@ex.com, since:2024-01-01)")
     ap.add_argument("--read", type=int, metavar="UID_OR_NUM", help="Read single email by UID (IMAP) or message num (POP3)")
     ap.add_argument("--format", choices=["json", "table"], default="json", help="Output format (default: json)")
     ap.add_argument("--debug", action="store_true", help="Print debug info to stderr")

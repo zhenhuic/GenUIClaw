@@ -1,5 +1,5 @@
 import React from 'react'
-import { Plus, Trash2, X } from 'lucide-react'
+import { Plus, Trash2, X, Smartphone, Monitor } from 'lucide-react'
 import { useConversationStore } from '../../store/conversation-store'
 import { useConnectionStore } from '../../api/connection-store'
 
@@ -26,6 +26,12 @@ export function ConversationDrawer({ open, onClose }: Props) {
   }
 
   const handleNew = async () => {
+    // If current conversation has no messages, stay on it
+    const { messages } = useConversationStore.getState()
+    if (messages.length === 0) {
+      onClose()
+      return
+    }
     await createConversation('New Conversation')
     onClose()
   }
@@ -66,6 +72,7 @@ export function ConversationDrawer({ open, onClose }: Props) {
         <div className="flex-1 overflow-y-auto px-2">
           {conversations.map((conv) => {
             const isActive = conv.id === activeConversationId
+            const isRemote = conv.source === 'remote'
             return (
               <div
                 key={conv.id}
@@ -76,6 +83,11 @@ export function ConversationDrawer({ open, onClose }: Props) {
                   color: isActive ? 'var(--text)' : 'var(--text-secondary)',
                 }}
               >
+                {isRemote ? (
+                  <Smartphone size={12} className="flex-shrink-0" style={{ color: 'var(--blue)' }} />
+                ) : (
+                  <Monitor size={12} className="flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
+                )}
                 <span className="flex-1 text-sm truncate">{conv.title}</span>
                 <button
                   onClick={(e) => handleDelete(e, conv.id)}

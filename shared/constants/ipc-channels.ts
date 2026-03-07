@@ -10,6 +10,7 @@ export const IPC_CHANNELS = {
   CONVERSATION_CREATE: 'conversation:create',
   CONVERSATION_DELETE: 'conversation:delete',
   CONVERSATION_TITLE_UPDATED: 'conversation:title-updated',
+  CONVERSATION_CHANGED: 'conversation:changed', // main → renderer: remote created/deleted
 
   // Messages
   MESSAGES_GET: 'messages:get',
@@ -33,6 +34,14 @@ export const IPC_CHANNELS = {
   SKILLS_DELETE: 'skills:delete',
   SKILLS_TOGGLE: 'skills:toggle',
   SKILLS_IMPORT: 'skills:import',
+
+  // Remote control
+  REMOTE_START: 'remote:start',
+  REMOTE_STOP: 'remote:stop',
+  REMOTE_STATUS: 'remote:status',
+  REMOTE_TEST: 'remote:test',
+  REMOTE_REGENERATE: 'remote:regenerate',
+  REMOTE_STATUS_PUSH: 'remote:status-push', // main → renderer push
 
   // Generative UI action callbacks
   UI_ACTION: 'ui:action',

@@ -8,6 +8,7 @@
  */
 
 import type { RelayRequest, RelayResponse, RelayPushEvent, RelayControl, RelayMessage } from '@shared/types/relay-protocol'
+import { generateUUID } from '../utils/uuid'
 
 type PendingRequest = {
   resolve: (value: unknown) => void
@@ -105,7 +106,7 @@ export class RelayWsClient {
         return
       }
 
-      const id = crypto.randomUUID()
+      const id = generateUUID()
       const timer = setTimeout(() => {
         this.pendingRequests.delete(id)
         reject(new Error(`Request timeout: ${method}`))

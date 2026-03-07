@@ -11,6 +11,7 @@ import type { RelayRequest, RelayResponse } from '../../shared/types/relay-proto
 import type { TransportSender } from './transport'
 import type { AgentStartPayload, UIActionPayload } from '../../shared/types/ipc'
 import type { AppSettings } from '../../shared/types/settings'
+import { IPC_CHANNELS } from '../../shared/constants/ipc-channels'
 
 // Storage
 import {
@@ -115,12 +116,16 @@ export async function handleRemoteRequest(
       }
 
       case 'conversations.create': {
-        const conv = createConversation(params.title as string)
+        const conv = createConversation(params.title as string, 'remote')
+        // Notify desktop renderer to refresh conversation list
+        notifyDesktopConversationChanged(titleSenders)
         return { type: 'response', id: req.id, result: { data: conv } }
       }
 
       case 'conversations.delete': {
         deleteConversation(params.id as string)
+        // Notify desktop renderer to refresh conversation list
+        notifyDesktopConversationChanged(titleSenders)
         return { type: 'response', id: req.id, result: { data: null } }
       }
 
@@ -181,5 +186,14 @@ export async function handleRemoteRequest(
   } catch (err) {
     log.error(`[Remote] Error handling ${req.method}:`, err)
     return { type: 'response', id: req.id, error: (err as Error).message }
+  }
+}
+
+/** Notify desktop senders that the conversation list has changed. */
+function notifyDesktopConversationChanged(senders: TransportSender[]): void {
+  for (const s of senders) {
+    if (!s.isDestroyed()) {
+      s.send(IPC_CHANNELS.CONVERSATION_CHANGED, {})
+    }
   }
 }

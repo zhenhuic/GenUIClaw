@@ -61,7 +61,16 @@ function ChatApp() {
 }
 
 export default function App() {
-  const { status } = useConnectionStore()
+  const { status, tryAutoConnect } = useConnectionStore()
+  const [autoConnectAttempted, setAutoConnectAttempted] = useState(false)
+
+  // On mount, check for ?token= URL parameter and auto-connect
+  useEffect(() => {
+    if (!autoConnectAttempted) {
+      tryAutoConnect()
+      setAutoConnectAttempted(true)
+    }
+  }, [])
 
   if (status !== 'connected') {
     return <ConnectScreen />

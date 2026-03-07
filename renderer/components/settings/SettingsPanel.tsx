@@ -22,7 +22,7 @@ export function SettingsPanel({ onClose }: Props) {
     { id: 'skills', label: 'Skills', icon: <Sparkles size={14} /> },
     { id: 'tools', label: 'Tools', icon: <Wrench size={14} /> },
     { id: 'mcp', label: 'MCP Servers', icon: <Server size={14} /> },
-    { id: 'remote', label: 'Remote', icon: <Smartphone size={14} /> },
+    { id: 'remote', label: 'Remote Control', icon: <Smartphone size={14} /> },
   ]
 
   return (

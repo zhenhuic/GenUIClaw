@@ -37,6 +37,7 @@ export function createRemoteAPI(client: RelayWsClient): ElectronAPI {
       onTitleUpdated: (callback) => {
         return client.onPush('conversation:title-updated', callback as (data: unknown) => void)
       },
+      onChanged: () => () => {},
     },
 
     settings: {

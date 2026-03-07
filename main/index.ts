@@ -6,15 +6,13 @@ import { createMainWindow } from './window'
 import { registerUIWindowHandlers } from './ui-window'
 import { AbortRegistry } from './agent/abort-controller'
 import { getAllSettings } from './storage/settings'
-import { RelayClient } from './remote/relay-client'
-import { ElectronTransportSender } from './remote/transport'
+import { RelayManager } from './remote/relay-manager'
 
 // Configure electron-log
 log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
 
 let mainWindow: BrowserWindow | null = null
-let relayClient: RelayClient | null = null
 
 app.whenReady().then(() => {
   // Initialize SQLite database
@@ -39,12 +37,7 @@ app.whenReady().then(() => {
   // Optionally start relay client for remote mobile access
   const settings = getAllSettings()
   if (settings.remoteAccess?.enabled && settings.remoteAccess.relayUrl) {
-    relayClient = new RelayClient(settings.remoteAccess.relayUrl)
-    // Provide the local Electron window as an additional title sender
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      relayClient.setTitleSenders([new ElectronTransportSender(mainWindow.webContents)])
-    }
-    relayClient.connect().then((code) => {
+    RelayManager.start(settings.remoteAccess.relayUrl).then((code) => {
       log.info(`[App] Remote access enabled. Device code: ${code}`)
     }).catch((err) => {
       log.warn(`[App] Initial relay connection failed: ${err.message}. Will keep retrying...`)
@@ -62,10 +55,7 @@ app.on('window-all-closed', () => {
 // Cleanup before quit
 app.on('before-quit', () => {
   AbortRegistry.interruptAll()
-  if (relayClient) {
-    relayClient.disconnect()
-    relayClient = null
-  }
+  RelayManager.stop().catch(() => {})
   closeDatabase()
   log.info('[App] GenUIClaw shutting down')
 })

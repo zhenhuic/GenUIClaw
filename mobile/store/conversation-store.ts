@@ -8,6 +8,7 @@
 
 import { create } from 'zustand'
 import type { AppMessage, MessageContentBlock, ToolCallBlock } from '@shared/types/conversation'
+import { generateUUID } from '../utils/uuid'
 import type { Conversation } from '@shared/types/conversation'
 import type { IpcAgentEvent } from '@shared/types/ipc'
 
@@ -29,7 +30,7 @@ interface ConversationState {
 
 function makeAssistantMessage(sessionId: string): AppMessage {
   return {
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     conversationId: '',
     role: 'assistant',
     content: [],
@@ -87,7 +88,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
   addUserMessage: (text, sessionId) => {
     const message: AppMessage = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       conversationId: get().activeConversationId ?? '',
       role: 'user',
       content: [{ type: 'text', text }],
