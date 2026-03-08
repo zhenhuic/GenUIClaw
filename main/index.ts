@@ -5,6 +5,8 @@ import { registerAllHandlers } from './ipc/index'
 import { createMainWindow } from './window'
 import { registerUIWindowHandlers } from './ui-window'
 import { AbortRegistry } from './agent/abort-controller'
+import { getAllSettings } from './storage/settings'
+import { RelayManager } from './remote/relay-manager'
 
 // Configure electron-log
 log.transports.file.level = 'info'
@@ -31,6 +33,16 @@ app.whenReady().then(() => {
   })
 
   log.info(`[App] GenUIClaw started. Electron ${process.versions.electron}, Node ${process.versions.node}`)
+
+  // Optionally start relay client for remote mobile access
+  const settings = getAllSettings()
+  if (settings.remoteAccess?.enabled && settings.remoteAccess.relayUrl) {
+    RelayManager.start(settings.remoteAccess.relayUrl).then((code) => {
+      log.info(`[App] Remote access enabled. Device code: ${code}`)
+    }).catch((err) => {
+      log.warn(`[App] Initial relay connection failed: ${err.message}. Will keep retrying...`)
+    })
+  }
 })
 
 // Quit on all windows closed (except macOS)
@@ -43,6 +55,7 @@ app.on('window-all-closed', () => {
 // Cleanup before quit
 app.on('before-quit', () => {
   AbortRegistry.interruptAll()
+  RelayManager.stop().catch(() => {})
   closeDatabase()
   log.info('[App] GenUIClaw shutting down')
 })

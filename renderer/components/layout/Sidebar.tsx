@@ -1,5 +1,5 @@
 import React from 'react'
-import { Plus, MessageSquare, Trash2 } from 'lucide-react'
+import { Plus, MessageSquare, Trash2, Smartphone } from 'lucide-react'
 import { useConversationStore } from '../../store/conversation-store'
 
 export function Sidebar() {
@@ -7,6 +7,9 @@ export function Sidebar() {
     useConversationStore()
 
   const handleNew = async () => {
+    // If current conversation has no messages, stay on it
+    const { messages } = useConversationStore.getState()
+    if (messages.length === 0) return
     await createConversation('New Conversation')
   }
 
@@ -63,6 +66,19 @@ export function Sidebar() {
             >
               <MessageSquare size={13} className="flex-shrink-0" />
               <span className="flex-1 truncate">{conv.title}</span>
+              {conv.source === 'remote' && (
+                <span
+                  className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                  style={{
+                    background: 'var(--blue)18',
+                    color: 'var(--blue)',
+                  }}
+                  title="Created from remote device"
+                >
+                  <Smartphone size={9} />
+                  Remote
+                </span>
+              )}
               <span
                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded"
                 onClick={(e) => handleDelete(e, conv.id)}

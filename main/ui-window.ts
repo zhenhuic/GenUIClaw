@@ -3,12 +3,14 @@ import { join } from 'path'
 import log from 'electron-log'
 import type { UISchema } from '../shared/types/ui-schema'
 import { IPC_CHANNELS } from '../shared/constants/ipc-channels'
+import type { TransportSender } from './remote/transport'
+import { validateSender } from './security/sender-validator'
 
 interface UIWindowContext {
   sessionId: string
   renderBlockId: string
   schema: UISchema
-  parentSender: Electron.WebContents
+  parentSender: TransportSender
 }
 
 const openWindows = new Map<string, BrowserWindow>()
@@ -115,7 +117,11 @@ export function openUIWindow(ctx: UIWindowContext): void {
 }
 
 export function registerUIWindowHandlers(): void {
-  ipcMain.handle(IPC_CHANNELS.UI_WINDOW_ACTION, (_event, payload) => {
+  ipcMain.handle(IPC_CHANNELS.UI_WINDOW_ACTION, (event, payload) => {
+    if (!validateSender(event.senderFrame)) {
+      return { error: 'Unauthorized sender' }
+    }
+
     const { sessionId, renderBlockId, actionId, data } = payload
     log.info(`[UIWindow] Action received: actionId=${actionId}, renderBlockId=${renderBlockId}`)
 
@@ -134,6 +140,10 @@ export function registerUIWindowHandlers(): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.UI_WINDOW_GET_SCHEMA, (event) => {
+    if (!validateSender(event.senderFrame)) {
+      return { error: 'Unauthorized sender' }
+    }
+
     const ctx = pendingSchemas.get(event.sender.id)
     if (!ctx) {
       log.warn(`[UIWindow] No pending schema for webContents id=${event.sender.id}`)

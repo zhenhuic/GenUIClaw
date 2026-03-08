@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { randomUUID } from 'crypto' // available via Vite's polyfill
 import type { AppMessage, MessageContentBlock, ToolCallBlock } from '../../shared/types/conversation'
 import type { Conversation } from '../../shared/types/conversation'
 import type { IpcAgentEvent } from '../../shared/types/ipc'

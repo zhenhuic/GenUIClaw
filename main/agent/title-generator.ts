@@ -1,12 +1,12 @@
 import { Agent } from '@mariozechner/pi-agent-core'
 import type { AgentEvent } from '@mariozechner/pi-agent-core'
-import type { BrowserWindow } from 'electron'
 import log from 'electron-log'
 import { getSetting } from '../storage/settings'
 import { updateConversationTitle } from '../storage/conversations'
 import { getMessages } from '../storage/messages'
 import { IPC_CHANNELS } from '../../shared/constants/ipc-channels'
 import type { ModelConfig } from '../../shared/types/settings'
+import type { TransportSender } from '../remote/transport'
 
 function resolveModelForTitle(config: ModelConfig) {
   const api = config.apiProtocol === 'anthropic' ? 'anthropic' : 'openai-completions'
@@ -29,7 +29,7 @@ const titledConversations = new Set<string>()
 export async function generateConversationTitle(
   conversationId: string,
   modelId: string | undefined,
-  mainWindow: BrowserWindow | null
+  senders: TransportSender[]
 ): Promise<void> {
   if (titledConversations.has(conversationId)) return
   titledConversations.add(conversationId)
@@ -102,11 +102,13 @@ export async function generateConversationTitle(
       updateConversationTitle(conversationId, title)
       log.info(`[TitleGen] Conversation ${conversationId} titled: "${title}"`)
 
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC_CHANNELS.CONVERSATION_TITLE_UPDATED, {
-          conversationId,
-          title,
-        })
+      for (const sender of senders) {
+        if (!sender.isDestroyed()) {
+          sender.send(IPC_CHANNELS.CONVERSATION_TITLE_UPDATED, {
+            conversationId,
+            title,
+          })
+        }
       }
     }
   } catch (err) {

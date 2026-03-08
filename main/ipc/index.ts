@@ -3,6 +3,7 @@ import { registerConversationHandlers } from './conversation-handlers'
 import { registerMcpHandlers } from './mcp-handlers'
 import { registerSettingsHandlers } from './settings-handlers'
 import { registerSkillsHandlers } from './skills-handlers'
+import { registerRemoteHandlers } from './remote-handlers'
 import log from 'electron-log'
 
 export function registerAllHandlers(): void {
@@ -11,5 +12,6 @@ export function registerAllHandlers(): void {
   registerMcpHandlers()
   registerSettingsHandlers()
   registerSkillsHandlers()
+  registerRemoteHandlers()
   log.info('[IPC] All handlers registered')
 }

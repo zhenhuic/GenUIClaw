@@ -1,11 +1,11 @@
 ---
 name: generative-ui
-description: Guide for using the ui_render tool to create interactive Dynamic UI components (tables, forms, charts, etc.) in separate windows. Use when presenting structured data, collecting user input, or building visual workflows instead of plain text.
+description: Guide for using the ui_render tool to create interactive Dynamic UI components (tables, forms, charts, etc.). UI renders inline in chat on mobile (bottom sheet) and in separate windows on desktop. Optimized for touch interactions and responsive layouts.
 ---
 
 # Generative Dynamic UI
 
-You have the `ui_render` tool to create interactive UI components in a separate window. Use it to present structured data, collect user input, and build interactive workflows — instead of relying on plain text when a visual interface would be more effective.
+You have the `ui_render` tool to create interactive UI components. On desktop, they open in a separate window; on mobile, they render inline in chat or in a draggable bottom sheet. Use it to present structured data, collect user input, and build interactive workflows — instead of relying on plain text when a visual interface would be more effective.
 
 ## When to Use `ui_render`
 
@@ -40,6 +40,7 @@ Layout wrapper. Use as root to compose multiple components.
 ```
 - `direction`: `"row"` | `"column"` (default: `"column"`)
 - `gap`: `"sm"` (8px) | `"md"` (16px) | `"lg"` (24px)
+- **Mobile tip**: Prefer `"column"` direction for root containers. Use `"row"` only for small inline groups (e.g. 2-3 buttons side by side).
 
 ### text
 Display text content with markdown support.
@@ -73,6 +74,7 @@ Data table with sorting and pagination.
 ```
 - Use `"header"` (not `"label"`) for column headers
 - When a row is selected, you receive: `{ actionId: "row_selected", data: { selectedRow: {...}, index: 0 } }`
+- **Mobile tip**: Limit to 3-4 columns on mobile for readability. Use short column headers. Table scrolls horizontally if needed.
 
 ### form
 Structured input form that submits data back to you.
@@ -92,6 +94,7 @@ Structured input form that submits data back to you.
 ```
 - Field types: `text`, `number`, `email`, `password`, `textarea`, `select`, `checkbox`, `date`, `file`
 - On submit, you receive all field values: `{ actionId: "submit_config", data: { url: "...", method: "GET", ... } }`
+- **Mobile tip**: Forms render with 44px minimum input height and 16px font on mobile to prevent iOS zoom. Keep field count reasonable (3-6 fields per form). Use placeholders to guide input.
 
 ### select
 Dropdown selection that immediately sends the choice.
@@ -114,6 +117,7 @@ Data visualization using Recharts.
 }
 ```
 - `chartType`: `"bar"` | `"line"` | `"area"` | `"pie"` | `"scatter"`
+- **Mobile tip**: Charts auto-resize to fit the container width. Use short axis labels. Pie charts work well on small screens.
 
 ### card
 Content card, optionally clickable.
@@ -166,6 +170,18 @@ File selection dialog.
 
 8. **Keep action IDs descriptive** — use names like `"submit_config"`, `"delete_item"`, `"select_language"` so you can easily identify what the user did when the action comes back.
 
+## Mobile-First Design Guidelines
+
+When building UI that may be viewed on mobile devices:
+
+1. **Prefer vertical layouts** — use `direction: "column"` for root containers. Row layouts with many items wrap poorly on small screens.
+2. **Keep tables narrow** — limit to 3-4 columns. Wide tables require horizontal scrolling which is awkward on touch.
+3. **Use larger touch targets** — buttons automatically get 44px min-height on mobile. Keep button labels concise.
+4. **Minimize form fields** — break long forms into multi-step workflows (form → results → next form) instead of one giant form.
+5. **Use cards for navigation** — clickable cards with `actionId` work great on touch as large tap targets.
+6. **Test with shorter content** — mobile screens show less content; prefer concise text and summaries.
+7. **Leverage progress + badge** — these compact components communicate status without taking much space.
+
 ## Handling User Actions
 
 When a user interacts with your rendered UI (clicks a button, submits a form, selects an option, picks a row), the action data is sent back to you as structured input. You should:
@@ -176,6 +192,14 @@ When a user interacts with your rendered UI (clicks a button, submits a form, se
 4. Optionally render a new UI to show results or ask for next steps
 
 This creates a conversational workflow where UI interactions drive agent actions seamlessly.
+
+## Agent Event Integration
+
+When your UI triggers an action:
+- The user sees the action reflected in the chat as a message (e.g. `[UI Action] submit_config: {...}`)
+- You receive the action data and can respond with text, tool calls, or a new `ui_render`
+- The original UI remains visible; render a new UI if you need to show updated results
+- On mobile, the bottom sheet auto-opens when you render a new UI during a conversation
 
 ## Example: Complete Workflow
 

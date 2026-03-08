@@ -1,8 +1,9 @@
 import { Agent } from '@mariozechner/pi-agent-core'
 import type { AgentEvent } from '@mariozechner/pi-agent-core'
 import type { Model } from '@mariozechner/pi-ai'
-import type { WebContents } from 'electron'
 import log from 'electron-log'
+import type { TransportSender } from '../remote/transport'
+import { ElectronTransportSender } from '../remote/transport'
 import type { IpcAgentEvent } from '../../shared/types/ipc'
 import type { MessageContentBlock } from '../../shared/types/conversation'
 import type { McpServerConfig as AppMcpServerConfig, ModelConfig, SkillConfig } from '../../shared/types/settings'
@@ -24,7 +25,7 @@ export interface AgentRunOptions {
   mcpServers: Record<string, AppMcpServerConfig>
   cwd?: string
   systemPrompt?: string
-  sender: WebContents
+  sender: TransportSender
   modelId?: string
   skillIds?: string[]
 }
@@ -41,9 +42,11 @@ function assistantContentToBlocks(
     // thinking 块不持久化到会话消息
     if (item.type === 'toolCall' && item.id != null && item.name != null) {
       const args = item.arguments ?? {}
-      if (item.name === 'ui_render' && typeof args.schema === 'object') {
+      if (item.name === 'ui_render' && args.schema != null) {
         try {
-          const schema = normalizeSchema(args.schema)
+          const rawSchema =
+            typeof args.schema === 'string' ? JSON.parse(args.schema) : args.schema
+          const schema = normalizeSchema(rawSchema)
           blocks.push({ type: 'ui_render', renderBlockId: item.id, schema })
         } catch {
           blocks.push({
@@ -151,49 +154,63 @@ export async function runAgentSession(opts: AgentRunOptions): Promise<void> {
     })
 
     const eventPromise = new Promise<void>((resolve, reject) => {
+      let settled = false
+
       const unsubscribe = agent.subscribe((event: AgentEvent) => {
+        if (settled) return
+
         const ipcEvents = processAgentEvent(event, opts.sessionId)
         for (const ipcEvent of ipcEvents) {
           emit(ipcEvent)
 
           if (ipcEvent.type === 'ui_render') {
-            openUIWindow({
-              sessionId: opts.sessionId,
-              renderBlockId: ipcEvent.renderBlockId,
-              schema: ipcEvent.schema,
-              parentSender: opts.sender,
-            })
+            // Only open a standalone Electron window for local desktop clients.
+            // Remote clients receive the schema via the push event above.
+            if (opts.sender instanceof ElectronTransportSender) {
+              openUIWindow({
+                sessionId: opts.sessionId,
+                renderBlockId: ipcEvent.renderBlockId,
+                schema: ipcEvent.schema,
+                parentSender: opts.sender,
+              })
+            }
           }
         }
 
         if (event.type === 'agent_end') {
           const messages = event.messages as Array<{ role: string; content?: unknown[] }>
-          const last = messages[messages.length - 1]
-          if (last?.role === 'assistant' && Array.isArray(last.content) && last.content.length > 0) {
-            try {
-              const blocks = assistantContentToBlocks(
-                last.content as Array<{
-                  type: string
-                  text?: string
-                  thinking?: string
-                  id?: string
-                  name?: string
-                  arguments?: Record<string, unknown>
-                }>
-              )
-              if (blocks.length > 0) {
-                saveMessage(opts.conversationId, 'assistant', blocks, opts.sessionId)
+          // Persist all assistant messages, not just the last one.
+          // Multi-turn tool calls produce multiple assistant messages.
+          for (const msg of messages) {
+            if (msg.role === 'assistant' && Array.isArray(msg.content) && msg.content.length > 0) {
+              try {
+                const blocks = assistantContentToBlocks(
+                  msg.content as Array<{
+                    type: string
+                    text?: string
+                    thinking?: string
+                    id?: string
+                    name?: string
+                    arguments?: Record<string, unknown>
+                  }>
+                )
+                if (blocks.length > 0) {
+                  saveMessage(opts.conversationId, 'assistant', blocks, opts.sessionId)
+                }
+              } catch (err) {
+                log.warn('[Agent] Failed to persist assistant message:', err)
               }
-            } catch (err) {
-              log.warn('[Agent] Failed to persist assistant message:', err)
             }
           }
           unsubscribe()
+          settled = true
           resolve()
         }
       })
 
       abortController.signal.addEventListener('abort', () => {
+        if (settled) return
+        settled = true
         agent.abort()
         unsubscribe()
         reject(new DOMException('Aborted', 'AbortError'))

@@ -8,6 +8,8 @@ import { AbortRegistry } from '../agent/abort-controller'
 import { validateSender } from '../security/sender-validator'
 import { saveMessage } from '../storage/messages'
 import { generateConversationTitle } from '../agent/title-generator'
+import { ElectronTransportSender } from '../remote/transport'
+import type { TransportSender } from '../remote/transport'
 
 export function registerAgentHandlers(): void {
   // Start a new agent session — non-blocking, responses stream via AGENT_STREAM_EVENT
@@ -29,21 +31,31 @@ export function registerAgentHandlers(): void {
 
       const mainWindow = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
 
-      setImmediate(async () => {
-        await runAgentSession({
-          sessionId,
-          prompt,
-          conversationId,
-          allowedTools,
-          mcpServers,
-          cwd,
-          systemPrompt,
-          sender: event.sender,
-          modelId,
-          skillIds,
-        })
+      const senderTransport = new ElectronTransportSender(event.sender)
 
-        generateConversationTitle(conversationId, modelId, mainWindow ?? null)
+      setImmediate(async () => {
+        try {
+          await runAgentSession({
+            sessionId,
+            prompt,
+            conversationId,
+            allowedTools,
+            mcpServers,
+            cwd,
+            systemPrompt,
+            sender: senderTransport,
+            modelId,
+            skillIds,
+          })
+
+          const titleSenders: TransportSender[] = []
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            titleSenders.push(new ElectronTransportSender(mainWindow.webContents))
+          }
+          generateConversationTitle(conversationId, modelId, titleSenders)
+        } catch (err) {
+          log.error('[IPC] Agent session failed:', err)
+        }
       })
 
       return { data: { sessionId, status: 'started' } }
@@ -84,9 +96,11 @@ export function registerAgentHandlers(): void {
           mcpServers: agentContext.mcpServers,
           cwd: agentContext.cwd,
           systemPrompt: agentContext.systemPrompt,
-          sender: event.sender,
+          sender: new ElectronTransportSender(event.sender),
           modelId: agentContext.modelId,
           skillIds: agentContext.skillIds,
+        }).catch((err) => {
+          log.error('[IPC] UI action agent session failed:', err)
         })
       )
 

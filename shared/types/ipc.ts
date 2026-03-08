@@ -100,6 +100,15 @@ export type IpcAgentEvent =
       data: Record<string, unknown>
     }
 
+// ---- Remote control status ----
+
+export interface RemoteStatus {
+  relayConnected: boolean
+  deviceCode: string
+  mobileConnected: boolean
+  relayUrl: string
+}
+
 // ---- Typed IPC return shapes ----
 
 export type IpcResult<T> = { data: T; error?: never } | { data?: never; error: string }
@@ -120,6 +129,7 @@ export interface ElectronAPI {
     delete: (id: string) => Promise<IpcResult<void>>
     getMessages: (conversationId: string) => Promise<IpcResult<AppMessage[]>>
     onTitleUpdated: (callback: (data: { conversationId: string; title: string }) => void) => () => void
+    onChanged: (callback: () => void) => () => void
   }
   mcp: {
     list: () => Promise<IpcResult<McpServerStatus[]>>
@@ -143,6 +153,14 @@ export interface ElectronAPI {
     onSchema: (callback: (data: { sessionId: string; renderBlockId: string; schema: UISchema }) => void) => () => void
     getSchema: () => Promise<IpcResult<{ sessionId: string; renderBlockId: string; schema: UISchema } | null>>
     action: (payload: { sessionId: string; renderBlockId: string; actionId: string; data: Record<string, unknown> }) => Promise<IpcResult<{ status: string }>>
+  }
+  remote: {
+    start: (relayUrl: string) => Promise<IpcResult<{ deviceCode: string }>>
+    stop: () => Promise<IpcResult<void>>
+    status: () => Promise<IpcResult<RemoteStatus>>
+    test: (relayUrl: string) => Promise<IpcResult<{ latencyMs: number }>>
+    regenerate: () => Promise<IpcResult<{ deviceCode: string }>>
+    onStatusPush: (callback: (status: RemoteStatus) => void) => () => void
   }
 }
 

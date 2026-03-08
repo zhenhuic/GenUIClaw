@@ -5,6 +5,7 @@ import type {
   AgentInterruptPayload,
   UIActionPayload,
   IpcAgentEvent,
+  RemoteStatus,
 } from '../shared/types/ipc'
 import type { AppSettings, McpServerConfig } from '../shared/types/settings'
 
@@ -32,6 +33,11 @@ const ALLOWED_INVOKE_CHANNELS = new Set([
   IPC_CHANNELS.SKILLS_DELETE,
   IPC_CHANNELS.SKILLS_TOGGLE,
   IPC_CHANNELS.SKILLS_IMPORT,
+  IPC_CHANNELS.REMOTE_START,
+  IPC_CHANNELS.REMOTE_STOP,
+  IPC_CHANNELS.REMOTE_STATUS,
+  IPC_CHANNELS.REMOTE_TEST,
+  IPC_CHANNELS.REMOTE_REGENERATE,
 ])
 
 function safeInvoke(channel: string, payload?: unknown): Promise<unknown> {
@@ -75,6 +81,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on(IPC_CHANNELS.CONVERSATION_TITLE_UPDATED, handler)
       return () => ipcRenderer.removeListener(IPC_CHANNELS.CONVERSATION_TITLE_UPDATED, handler)
     },
+    onChanged: (callback: () => void): (() => void) => {
+      const handler = (): void => {
+        callback()
+      }
+      ipcRenderer.on(IPC_CHANNELS.CONVERSATION_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.CONVERSATION_CHANGED, handler)
+    },
   },
 
   mcp: {
@@ -112,5 +125,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSchema: () => safeInvoke(IPC_CHANNELS.UI_WINDOW_GET_SCHEMA),
     action: (payload: { sessionId: string; renderBlockId: string; actionId: string; data: Record<string, unknown> }) =>
       safeInvoke(IPC_CHANNELS.UI_WINDOW_ACTION, payload),
+  },
+
+  remote: {
+    start: (relayUrl: string) => safeInvoke(IPC_CHANNELS.REMOTE_START, relayUrl),
+    stop: () => safeInvoke(IPC_CHANNELS.REMOTE_STOP),
+    status: () => safeInvoke(IPC_CHANNELS.REMOTE_STATUS),
+    test: (relayUrl: string) => safeInvoke(IPC_CHANNELS.REMOTE_TEST, relayUrl),
+    regenerate: () => safeInvoke(IPC_CHANNELS.REMOTE_REGENERATE),
+    onStatusPush: (callback: (status: RemoteStatus) => void): (() => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: RemoteStatus): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC_CHANNELS.REMOTE_STATUS_PUSH, handler)
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.REMOTE_STATUS_PUSH, handler)
+    },
   },
 })

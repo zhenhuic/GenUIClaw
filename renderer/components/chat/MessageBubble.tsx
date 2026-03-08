@@ -3,7 +3,6 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { AppMessage, MessageContentBlock } from '../../../shared/types/conversation'
 import { ToolCallBlock } from './ToolCallBlock'
-import { UIRenderer } from '../generative-ui/UIRenderer'
 import { useAgent } from '../../hooks/useAgent'
 
 interface Props {
@@ -86,6 +85,10 @@ function ContentBlock({
   }
 
   if (block.type === 'tool_call') {
+    // Show "Generating UI" indicator for pending ui_render tool calls
+    if (block.toolName === 'ui_render' && block.status === 'pending') {
+      return <GeneratingUIIndicator />
+    }
     return <ToolCallBlock block={block} />
   }
 
@@ -121,6 +124,29 @@ function StreamingIndicator() {
           }}
         />
       ))}
+    </div>
+  )
+}
+
+function GeneratingUIIndicator() {
+  return (
+    <div
+      className="flex items-center gap-2.5 px-4 py-3 rounded-xl text-xs"
+      style={{
+        background: 'var(--accent-dim)',
+        border: '1px solid var(--accent)30',
+        color: 'var(--accent)',
+      }}
+    >
+      <div
+        className="w-4 h-4 rounded-full"
+        style={{
+          border: '2px solid var(--accent)40',
+          borderTopColor: 'var(--accent)',
+          animation: 'spin 0.8s linear infinite',
+        }}
+      />
+      <span className="font-medium">Generating interactive UI...</span>
     </div>
   )
 }

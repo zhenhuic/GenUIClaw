@@ -13,12 +13,16 @@ export function useAgentStreamSubscription() {
     const cleanup = window.electronAPI.agent.onStreamEvent((event) => {
       if (event.type === 'ui_action_received') {
         const { renderBlockId, actionId, data } = event
-        const { activeConversationId } = useConversationStore.getState()
+        const { activeConversationId, addUserMessage } = useConversationStore.getState()
         const { settings } = useSettingsStore.getState()
         const { selectedModelId, selectedSkillIds } = useAgentStore.getState()
 
         if (activeConversationId) {
           const sessionId = crypto.randomUUID()
+          // Show the UI action in the chat so the user can see what was triggered
+          const actionSummary = `[UI Action] ${actionId}${Object.keys(data).length > 0 ? ': ' + JSON.stringify(data) : ''}`
+          addUserMessage(actionSummary, sessionId)
+
           window.electronAPI.agent.uiAction({
             sessionId,
             conversationId: activeConversationId,

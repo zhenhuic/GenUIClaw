@@ -62,8 +62,8 @@ def main():
     msg["Subject"] = args.subject
     if args.cc:
         msg["Cc"] = args.cc
-    if args.bcc:
-        msg["Bcc"] = args.bcc
+    # BCC recipients are intentionally NOT added to message headers;
+    # they are only included in the SMTP envelope (sendmail recipients).
 
     subtype = "html" if args.html else "plain"
     msg.attach(MIMEText(args.body, subtype, "utf-8"))
@@ -81,7 +81,7 @@ def main():
                 smtp.sendmail(email_addr, all_recipients, msg.as_string())
         else:
             with smtplib.SMTP(host, port, timeout=30) as smtp:
-                if use_starttls or not use_ssl:
+                if use_starttls:
                     smtp.starttls()
                 smtp.login(email_addr, password)
                 smtp.sendmail(email_addr, all_recipients, msg.as_string())
