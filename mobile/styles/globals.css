@@ -220,6 +220,14 @@ button:active:not(:disabled), [role="button"]:active {
   animation: fade-in 0.2s ease-out;
 }
 
+.bottom-sheet-backdrop-closing {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  animation: fade-out 0.25s ease-in forwards;
+}
+
 .bottom-sheet {
   position: fixed;
   bottom: 0;
@@ -229,11 +237,16 @@ button:active:not(:disabled), [role="button"]:active {
   background: var(--surface);
   border-top-left-radius: 16px;
   border-top-right-radius: 16px;
-  max-height: 90vh;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
   animation: slide-up 0.3s ease-out;
   padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+}
+
+.bottom-sheet-closing {
+  animation: slide-down-out 0.25s ease-in forwards;
 }
 
 .bottom-sheet-handle {
@@ -241,14 +254,17 @@ button:active:not(:disabled), [role="button"]:active {
   height: 4px;
   background: var(--text-muted);
   border-radius: 2px;
-  margin: 10px auto;
+  margin: 6px auto;
   flex-shrink: 0;
+  opacity: 0.6;
 }
 
 .bottom-sheet-content {
   flex: 1;
   overflow-y: auto;
-  padding: 0 16px 16px;
+  overflow-x: hidden;
+  padding: 8px 16px 16px;
+  -webkit-overflow-scrolling: touch;
 }
 
 @keyframes slide-up {
@@ -256,9 +272,23 @@ button:active:not(:disabled), [role="button"]:active {
   to   { transform: translateY(0); }
 }
 
+@keyframes slide-down-out {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
 @keyframes fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ---- Toast (mobile) ---- */
@@ -327,6 +357,11 @@ button:active:not(:disabled), [role="button"]:active {
   padding: 10px 12px;
 }
 
+/* Horizontal scroll hint for tables */
+.generative-ui-root .overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Make form inputs comfortable on mobile */
 .generative-ui-root input[type="text"],
 .generative-ui-root input[type="number"],
@@ -344,4 +379,27 @@ button:active:not(:disabled), [role="button"]:active {
   min-height: 44px;
   padding-left: 16px;
   padding-right: 16px;
+}
+
+/* Touch feedback for interactive cards */
+.generative-ui-root [style*="cursor: pointer"]:active {
+  opacity: 0.85;
+  transform: scale(0.98);
+}
+
+/* Better spacing for generative UI in bottom sheet */
+.bottom-sheet-content .generative-ui-root {
+  padding: 16px;
+  border: none;
+  box-shadow: none;
+}
+
+/* Prevent content overflow in bottom sheet */
+.bottom-sheet-content .generative-ui-root table {
+  font-size: 13px;
+}
+
+/* Chart responsive container in bottom sheet */
+.bottom-sheet-content .recharts-responsive-container {
+  min-height: 200px;
 }

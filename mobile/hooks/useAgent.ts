@@ -7,6 +7,7 @@ import { useEffect, useCallback } from 'react'
 import { useAgentStore } from '../store/agent-store'
 import { useConversationStore } from '../store/conversation-store'
 import { useSettingsStore } from '../store/settings-store'
+import { useUIDisplayStore } from '../store/ui-display-store'
 import type { AgentStartPayload } from '@shared/types/ipc'
 import { generateUUID } from '../utils/uuid'
 
@@ -42,6 +43,14 @@ export function useAgentStreamSubscription() {
           })
         }
         return
+      }
+
+      // Auto-open bottom sheet when ui_render event arrives during conversation
+      if (event.type === 'ui_render') {
+        const { mode, openSheet } = useUIDisplayStore.getState()
+        if (mode === 'bottomsheet') {
+          openSheet(event.renderBlockId, event.sessionId, event.schema)
+        }
       }
 
       handleAgentEvent(event)

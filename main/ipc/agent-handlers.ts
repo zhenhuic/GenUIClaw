@@ -34,24 +34,28 @@ export function registerAgentHandlers(): void {
       const senderTransport = new ElectronTransportSender(event.sender)
 
       setImmediate(async () => {
-        await runAgentSession({
-          sessionId,
-          prompt,
-          conversationId,
-          allowedTools,
-          mcpServers,
-          cwd,
-          systemPrompt,
-          sender: senderTransport,
-          modelId,
-          skillIds,
-        })
+        try {
+          await runAgentSession({
+            sessionId,
+            prompt,
+            conversationId,
+            allowedTools,
+            mcpServers,
+            cwd,
+            systemPrompt,
+            sender: senderTransport,
+            modelId,
+            skillIds,
+          })
 
-        const titleSenders: TransportSender[] = []
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          titleSenders.push(new ElectronTransportSender(mainWindow.webContents))
+          const titleSenders: TransportSender[] = []
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            titleSenders.push(new ElectronTransportSender(mainWindow.webContents))
+          }
+          generateConversationTitle(conversationId, modelId, titleSenders)
+        } catch (err) {
+          log.error('[IPC] Agent session failed:', err)
         }
-        generateConversationTitle(conversationId, modelId, titleSenders)
       })
 
       return { data: { sessionId, status: 'started' } }
@@ -95,6 +99,8 @@ export function registerAgentHandlers(): void {
           sender: new ElectronTransportSender(event.sender),
           modelId: agentContext.modelId,
           skillIds: agentContext.skillIds,
+        }).catch((err) => {
+          log.error('[IPC] UI action agent session failed:', err)
         })
       )
 

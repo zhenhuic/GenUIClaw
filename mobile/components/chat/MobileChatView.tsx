@@ -10,8 +10,23 @@ export function MobileChatView() {
   const { sendMessage, interrupt, isRunning } = useAgent()
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const inputBarRef = useRef<HTMLDivElement>(null)
   const [userScrolled, setUserScrolled] = useState(false)
   const isAutoScrollingRef = useRef(false)
+  const [inputBarHeight, setInputBarHeight] = useState(0)
+
+  // Measure input bar height for positioning scroll button above it
+  useEffect(() => {
+    const el = inputBarRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setInputBarHeight(entry.contentRect.height + 16) // +padding
+      }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   // Check if scrolled near bottom
   const isNearBottom = useCallback((): boolean => {
@@ -73,27 +88,31 @@ export function MobileChatView() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Scroll to bottom button */}
-      {userScrolled && isRunning && (
+      {/* Scroll to bottom button — positioned above input bar, white/transparent bg */}
+      {userScrolled && (
         <button
           onClick={scrollToBottom}
-          className="absolute flex items-center justify-center rounded-full shadow-lg transition-all"
+          className="absolute flex items-center justify-center rounded-full transition-all"
           style={{
             right: 16,
-            bottom: 90,
-            width: 40,
-            height: 40,
-            background: 'var(--accent)',
-            color: '#fff',
+            bottom: Math.max(inputBarHeight + 16, 80),
+            width: 36,
+            height: 36,
+            background: 'rgba(255, 255, 255, 0.9)',
+            color: 'var(--text-secondary)',
             zIndex: 30,
-            border: '2px solid var(--bg)',
+            border: '1px solid var(--border)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
           }}
         >
-          <ArrowDown size={20} />
+          <ArrowDown size={18} />
         </button>
       )}
 
       <div
+        ref={inputBarRef}
         className="flex-shrink-0 px-3 pb-3"
         style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}
       >

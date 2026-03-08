@@ -21,7 +21,7 @@ interface UIDisplayState {
 }
 
 export const useUIDisplayStore = create<UIDisplayState>((set) => ({
-  mode: 'inline',
+  mode: 'bottomsheet',
   activeSheet: null,
 
   setMode: (mode) => set({ mode }),

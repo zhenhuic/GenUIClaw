@@ -47,30 +47,30 @@ Use IMAP (default) or POP3:
 
 ```bash
 # List recent emails (IMAP, default last 10)
-python scripts/fetch.py --limit 10
+python3 scripts/fetch.py --limit 10
 
 # Use POP3 instead of IMAP
-python scripts/fetch.py --protocol pop3 --limit 20
+python3 scripts/fetch.py --protocol pop3 --limit 20
 
 # Search by subject (converted to IMAP SUBJECT command)
-python scripts/fetch.py --search "subject:report"
+python3 scripts/fetch.py --search "subject:report"
 
 # Search by sender
-python scripts/fetch.py --search "from:boss@example.com"
+python3 scripts/fetch.py --search "from:boss@example.com"
 
 # Search by date range
-python scripts/fetch.py --search "since:2024-01-01"
-python scripts/fetch.py --search "before:2024-06-01"
+python3 scripts/fetch.py --search "since:2024-01-01"
+python3 scripts/fetch.py --search "before:2024-06-01"
 
 # Combined search
-python scripts/fetch.py --search "from:boss@example.com subject:report since:2024-01-01"
+python3 scripts/fetch.py --search "from:boss@example.com subject:report since:2024-01-01"
 
 # Output as JSON (default) or table
-python scripts/fetch.py --limit 5 --format table
+python3 scripts/fetch.py --limit 5 --format table
 
 # Read full content of a single email by UID (IMAP) or number (POP3)
-python scripts/fetch.py --read 42
-python scripts/fetch.py --protocol pop3 --read 3
+python3 scripts/fetch.py --read 42
+python3 scripts/fetch.py --protocol pop3 --read 3
 ```
 
 Output fields: `uid`/`num`, `from`, `to`, `subject`, `date`, `snippet` (or `body` when `--read`).
@@ -78,13 +78,13 @@ Output fields: `uid`/`num`, `from`, `to`, `subject`, `date`, `snippet` (or `body
 ## Sending Emails
 
 ```bash
-python scripts/send.py --to "recipient@example.com" --subject "Hello" --body "Email body text"
+python3 scripts/send.py --to "recipient@example.com" --subject "Hello" --body "Email body text"
 
 # With CC and BCC
-python scripts/send.py --to "a@ex.com" --cc "b@ex.com" --bcc "c@ex.com" --subject "..." --body "..."
+python3 scripts/send.py --to "a@ex.com" --cc "b@ex.com" --bcc "c@ex.com" --subject "..." --body "..."
 
 # HTML body
-python scripts/send.py --to "user@ex.com" --subject "Report" --body "<h1>Report</h1><p>Content</p>" --html
+python3 scripts/send.py --to "user@ex.com" --subject "Report" --body "<h1>Report</h1><p>Content</p>" --html
 ```
 
 ## Workflow

@@ -21,9 +21,6 @@ function ChatApp() {
   // Subscribe to agent stream events
   useAgentStreamSubscription()
 
-  // Monitor connection state (reconnection banner)
-  useConnectionMonitor()
-
   // Listen for title updates
   useEffect(() => {
     const cleanup = window.electronAPI.conversations.onTitleUpdated(({ conversationId, title }) => {
@@ -64,7 +61,11 @@ export default function App() {
   const { status, tryAutoConnect } = useConnectionStore()
   const [autoConnectAttempted, setAutoConnectAttempted] = useState(false)
 
-  // On mount, check for ?token= URL parameter and auto-connect
+  // Monitor WebSocket state at the top level so it keeps running
+  // even when ChatApp is not rendered (e.g. during reconnection).
+  useConnectionMonitor()
+
+  // On mount, check for ?token= URL parameter or persisted session and auto-connect
   useEffect(() => {
     if (!autoConnectAttempted) {
       tryAutoConnect()
@@ -72,9 +73,22 @@ export default function App() {
     }
   }, [])
 
-  if (status !== 'connected') {
-    return <ConnectScreen />
+  // Show ConnectScreen only when truly disconnected (user hasn't connected yet or explicitly disconnected).
+  // During temporary connection drops ('connecting' with a known deviceCode) we keep showing ChatApp
+  // so the user isn't kicked back to the code-entry screen.
+  // IMPORTANT: only keep ChatApp if we have connected at least once this page session,
+  // because window.electronAPI is only installed after a successful connect.
+  const hasConnectedOnce = useConnectionStore((s) => s.hasConnectedOnce)
+
+  if (status === 'connected') {
+    return <ChatApp />
   }
 
-  return <ChatApp />
+  // If we have successfully connected before in this page session, keep ChatApp rendered
+  // while reconnecting — the ConnectionStatusBar will show the reconnection banner.
+  if (hasConnectedOnce && (status === 'connecting' || status === 'error')) {
+    return <ChatApp />
+  }
+
+  return <ConnectScreen />
 }

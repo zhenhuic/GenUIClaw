@@ -2,9 +2,8 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useConnectionStore } from '../../api/connection-store'
 
 export function ConnectScreen() {
-  const { status, error, connect, relayUrl: defaultRelayUrl } = useConnectionStore()
-  const [code, setCode] = useState('')
-  const [relayUrl, setRelayUrl] = useState(defaultRelayUrl)
+  const { status, error, connect, relayUrl, deviceCode: storeCode } = useConnectionStore()
+  const [code, setCode] = useState(storeCode || '')
   const inputRef = useRef<HTMLInputElement>(null)
   const isConnecting = status === 'connecting'
 
@@ -58,7 +57,7 @@ export function ConnectScreen() {
       </div>
 
       <h1 className="text-lg font-semibold mb-1" style={{ color: 'var(--text)' }}>
-        GenUIClaw Remote
+        GenUIClaw Remote Control
       </h1>
       <p className="text-sm mb-8 text-center px-4" style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
         Enter the 6-digit device code shown on your desktop app
@@ -78,7 +77,7 @@ export function ConnectScreen() {
         onChange={(e) => handleCodeChange(e.target.value)}
         onPaste={handlePaste}
         disabled={isConnecting}
-        placeholder="XXXXXX"
+        placeholder="DEVICE CODE"
         className="outline-none text-center font-mono font-bold tracking-[0.35em] rounded-2xl w-full transition-colors"
         style={{
           maxWidth: 280,
@@ -117,28 +116,6 @@ export function ConnectScreen() {
       >
         {isConnecting ? 'Connecting...' : 'Connect'}
       </button>
-
-      {/* Relay URL */}
-      <details className="mt-10 w-full" style={{ maxWidth: 280 }}>
-        <summary
-          className="text-xs cursor-pointer select-none py-2"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          Relay server URL
-        </summary>
-        <input
-          type="url"
-          value={relayUrl}
-          onChange={(e) => setRelayUrl(e.target.value)}
-          className="mt-1 w-full px-4 py-3 rounded-xl text-sm outline-none ui-input-focus"
-          style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            color: 'var(--text)',
-            fontSize: 14,
-          }}
-        />
-      </details>
     </div>
   )
 }

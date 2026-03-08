@@ -98,19 +98,19 @@ export async function generateConversationTitle(
 
     title = title.trim().replace(/^["']|["']$/g, '').slice(0, 80)
 
-      if (title) {
-        updateConversationTitle(conversationId, title)
-        log.info(`[TitleGen] Conversation ${conversationId} titled: "${title}"`)
+    if (title) {
+      updateConversationTitle(conversationId, title)
+      log.info(`[TitleGen] Conversation ${conversationId} titled: "${title}"`)
 
-        for (const sender of senders) {
-          if (!sender.isDestroyed()) {
-            sender.send(IPC_CHANNELS.CONVERSATION_TITLE_UPDATED, {
-              conversationId,
-              title,
-            })
-          }
+      for (const sender of senders) {
+        if (!sender.isDestroyed()) {
+          sender.send(IPC_CHANNELS.CONVERSATION_TITLE_UPDATED, {
+            conversationId,
+            title,
+          })
         }
       }
+    }
   } catch (err) {
     log.warn(`[TitleGen] Failed to generate title for ${conversationId}:`, err)
     titledConversations.delete(conversationId)

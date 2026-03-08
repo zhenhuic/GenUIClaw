@@ -5,16 +5,28 @@ import type { UIComponentBaseProps } from '../registry'
 type Props = UIComponentBaseProps & { component: UISelectComponent }
 
 export function UISelect({ component, renderBlockId, onAction }: Props) {
-  const [value, setValue] = useState<string>(component.defaultValue ?? '')
+  const [value, setValue] = useState<string | string[]>(
+    component.multiple ? (component.defaultValue ? [component.defaultValue] : []) : (component.defaultValue ?? '')
+  )
   const [sent, setSent] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const v = e.target.value
-    setValue(v)
-    if (v) {
-      onAction(renderBlockId, component.actionId, { value: v })
-      setSent(true)
-      setTimeout(() => setSent(false), 1500)
+    if (component.multiple) {
+      const selected = Array.from(e.target.selectedOptions, (opt) => opt.value)
+      setValue(selected)
+      if (selected.length > 0) {
+        onAction(renderBlockId, component.actionId, { value: selected })
+        setSent(true)
+        setTimeout(() => setSent(false), 1500)
+      }
+    } else {
+      const v = e.target.value
+      setValue(v)
+      if (v) {
+        onAction(renderBlockId, component.actionId, { value: v })
+        setSent(true)
+        setTimeout(() => setSent(false), 1500)
+      }
     }
   }
 
@@ -49,7 +61,7 @@ export function UISelect({ component, renderBlockId, onAction }: Props) {
           transition: 'border-color 0.15s',
         }}
       >
-        <option value="">Select...</option>
+        {!component.multiple && <option value="">Select...</option>}
         {component.options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
