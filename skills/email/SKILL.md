@@ -10,9 +10,13 @@ Read and send emails using IMAP (recommended) or POP3 for receiving, and SMTP fo
 
 ## Configuration
 
-email config file is `skills/email/config.json`
+Copy the template and fill in your credentials:
 
-config file content:
+```bash
+cp skills/email/config.example.json skills/email/config.json
+```
+
+Then edit `skills/email/config.json` with your settings:
 
 | Field | Description |
 |-------|-------------|

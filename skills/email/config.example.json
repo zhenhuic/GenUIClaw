@@ -1,18 +1,18 @@
 {
-  "email": "rollingflint@foxmail.com",
-  "password": "genpxdxpfiikbhee",
+  "email": "your-email@example.com",
+  "password": "your-app-password",
   "imap": {
-    "host": "imap.qq.com",
+    "host": "imap.example.com",
     "port": 993,
     "ssl": true
   },
   "pop3": {
-    "host": "pop.qq.com",
+    "host": "pop.example.com",
     "port": 995,
     "ssl": true
   },
   "smtp": {
-    "host": "smtp.qq.com",
+    "host": "smtp.example.com",
     "port": 465,
     "ssl": true,
     "starttls": false
