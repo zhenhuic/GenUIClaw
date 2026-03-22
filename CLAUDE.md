@@ -1,131 +1,167 @@
-# GenUIClaw — 项目指南
+# GenUIClaw — Project Guide
 
-AI Agent 桌面应用，核心特性是 Generative Dynamic UI：LLM 可以在对话中调用 `ui_render` 工具动态生成交互式 UI 组件（表格、表单、图表等），在独立窗口渲染。支持多模型配置、Skill 技能扩展、MCP 服务器集成。
+AI Agent desktop app whose core feature is **Generative Dynamic UI**: the LLM can invoke the `ui_render` tool during conversation to dynamically generate interactive UI components (tables, forms, charts, etc.) rendered in standalone windows. Supports multi-model configuration, pluggable Skills, MCP server integration, and remote mobile access via a relay server.
 
-## 技术栈
+## Tech Stack
 
-- **框架**: Electron 33 + React 18 + TypeScript
-- **构建**: electron-vite (Vite 5) + Rollup，输出 ESM
-- **AI SDK**: `@mariozechner/pi-agent-core`（Agent 类 + 事件流）、`@mariozechner/pi-ai`（模型注册 + 流式推理）、`@mariozechner/pi-coding-agent`（编码工具集）
-- **状态管理**: Zustand 5
-- **数据库**: better-sqlite3（WAL 模式，路径 `userData/genuiclaw.db`）
-- **样式**: Tailwind CSS 3 + CSS 变量主题
-- **图表**: Recharts
-- **UI 原语**: Radix UI（Collapsible, Dialog, ScrollArea, Select, Separator, Switch, Tooltip）
-- **Schema 验证**: Zod 4
+- **Framework**: Electron 33 + React 18 + TypeScript
+- **Build**: electron-vite (Vite 5) + Rollup, ESM output
+- **AI SDK**: `@mariozechner/pi-agent-core` (Agent class + event stream), `@mariozechner/pi-ai` (model registry + streaming inference), `@mariozechner/pi-coding-agent` (coding tool suite)
+- **State Management**: Zustand 5
+- **Database**: better-sqlite3 (WAL mode, path `userData/genuiclaw.db`)
+- **Styling**: Tailwind CSS 3 + CSS variable theming
+- **Charts**: Recharts
+- **UI Primitives**: Radix UI (Collapsible, Dialog, ScrollArea, Select, Separator, Switch, Tooltip)
+- **Schema Validation**: Zod 4
 
-## 命令
+## Commands
 
 ```bash
-npm run dev      # 启动开发模式（Vite dev server + Electron）
-npm run build    # 生产构建
-npm run start    # 运行已构建的 Electron 应用
-npm run rebuild  # 重新编译 native 模块 (better-sqlite3)
+npm run dev          # Start dev mode (Vite dev server + Electron)
+npm run build        # Production build
+npm run start        # Run the built Electron app
+npm run rebuild      # Recompile native modules (better-sqlite3)
+npm run mobile:dev   # Start mobile web client dev server (port 3001)
+npm run mobile:build # Build mobile web client (output → relay-server/static/)
 ```
 
-- `postinstall` 自动执行 `electron-builder install-app-deps`；`rebuild` 用于手动重新编译 better-sqlite3 等 native 模块
+- `postinstall` auto-runs `electron-builder install-app-deps`; `rebuild` manually recompiles native modules like better-sqlite3
 
-## 目录结构
+## Directory Structure
 
 ```
-main/                    # Electron 主进程
-  index.ts               # 入口：初始化 DB、注册 IPC、创建窗口
-  window.ts              # 主窗口 BrowserWindow 创建
-  ui-window.ts           # 动态 UI 独立窗口（ui_render 触发，含智能尺寸估算）
-  agent/                 # AI Agent 引擎
-    runner.ts            # 核心：创建 Agent、订阅事件、推送 IPC
-    message-processor.ts # AgentEvent → IpcAgentEvent 转换
-    tools.ts             # 注册工具：coding tools + ui_render
-    abort-controller.ts  # AbortRegistry：会话中断管理
-    title-generator.ts   # 对话标题自动生成（首轮对话后 LLM 生成 3-8 词标题）
-    schema-normalizer.ts # UISchema 规范化（处理 LLM 输出变体）
-  ipc/                   # IPC handler 注册
-    index.ts             # 统一注册入口
+main/                    # Electron main process
+  index.ts               # Entry: init DB, register IPC, create window
+  window.ts              # Main BrowserWindow creation
+  ui-window.ts           # Dynamic UI standalone window (ui_render trigger, smart sizing)
+  agent/                 # AI Agent engine
+    runner.ts            # Core: create Agent, subscribe events, push IPC
+    message-processor.ts # AgentEvent → IpcAgentEvent conversion
+    tools.ts             # Register tools: coding tools + ui_render
+    abort-controller.ts  # AbortRegistry: session abort management
+    title-generator.ts   # Auto-generate conversation title (3-8 word LLM-generated title after first turn)
+    schema-normalizer.ts # UISchema normalization (handle LLM output variants)
+  ipc/                   # IPC handler registration
+    index.ts             # Unified registration entry
     agent-handlers.ts    # agent:start / agent:interrupt / ui:action
     conversation-handlers.ts
     settings-handlers.ts
     mcp-handlers.ts
     skills-handlers.ts   # Skills CRUD + toggle + import (zip)
-  storage/               # SQLite 数据层
-    database.ts          # 初始化、建表、连接管理
-    conversations.ts     # 对话 CRUD
-    messages.ts          # 消息 CRUD（content 存 JSON）
-    settings.ts          # 键值设置存储（合并 DEFAULT_SETTINGS）
-    skills.ts            # Skills 存储（builtin + user，目录 + SKILL.md）
+  storage/               # SQLite data layer
+    database.ts          # Init, create tables, connection management
+    conversations.ts     # Conversation CRUD
+    messages.ts          # Message CRUD (content stored as JSON)
+    settings.ts          # Key-value settings store (merged with DEFAULT_SETTINGS)
+    skills.ts            # Skills storage (builtin + user, directory + SKILL.md)
+  remote/                # Remote access / relay connection
+    relay-client.ts      # WebSocket client connecting to relay server
+    relay-manager.ts     # Singleton managing RelayClient lifecycle (start/stop/status)
+    remote-handler.ts    # Handle incoming remote messages (request/response routing)
+    remote-transport.ts  # TransportSender implementation for remote clients
+    transport.ts         # TransportSender interface + ElectronTransportSender
+    auth.ts              # Device code generation and validation
   security/
-    sender-validator.ts  # IPC sender 来源校验
+    sender-validator.ts  # IPC sender origin validation
 
 preload/
-  index.ts               # contextBridge 暴露 electronAPI（白名单校验）
+  index.ts               # contextBridge exposing electronAPI (whitelist validation)
 
-renderer/                # React SPA（Vite root）
-  index.html             # 主窗口入口（CSP: default-src 'self'）
-  main.tsx               # React 挂载点
-  App.tsx                # 根组件：布局 + 主题 + 事件订阅 + 自动创建新对话
-  ui-window.html         # 动态 UI 窗口入口（强制 light 主题）
-  ui-window-main.tsx     # UI 窗口 React 挂载点 + action 处理
+renderer/                # React SPA (Vite root)
+  index.html             # Main window entry (CSP: default-src 'self')
+  main.tsx               # React mount point
+  App.tsx                # Root component: layout + theme + event subscriptions + auto-create new conversation
+  ui-window.html         # Dynamic UI window entry (forced light theme)
+  ui-window-main.tsx     # UI window React mount point + action handling
   components/
     layout/              # Sidebar, MainContent, TitleBar
     chat/                # ChatView, InputBar, MessageList, MessageBubble, ToolCallBlock
-    settings/            # SettingsPanel（5 tab）, GeneralSettings, ModelsSettings,
+    settings/            # SettingsPanel (5 tabs), GeneralSettings, ModelsSettings,
                          # ToolSettings, SkillsSettings, MCPServerList, MCPServerForm
-    generative-ui/       # 动态 UI 渲染
-      UIRenderer.tsx     # 递归渲染引擎（rootId → componentRegistry）
-      registry.ts        # 组件类型 → React 组件映射表
+    generative-ui/       # Dynamic UI rendering
+      UIRenderer.tsx     # Recursive render engine (rootId → componentRegistry)
+      registry.ts        # Component type → React component mapping
       components/        # UITable, UIForm, UICard, UIButton, UIChart, UIText,
                          # UISelect, UIProgress, UIBadge, UIContainer, UIFilePicker
   store/
-    conversation-store.ts  # 对话 + 消息状态、handleAgentEvent 处理流式事件
-    agent-store.ts         # Agent 运行状态 (isRunning, activeSessionId, selectedModelId, selectedSkillIds)
-    settings-store.ts      # 应用设置状态
-    skills-store.ts        # Skills 状态（load/toggle/save/update/remove/import）
+    conversation-store.ts  # Conversation + message state, handleAgentEvent processes streaming events
+    agent-store.ts         # Agent run state (isRunning, activeSessionId, selectedModelId, selectedSkillIds)
+    settings-store.ts      # App settings state
+    skills-store.ts        # Skills state (load/toggle/save/update/remove/import)
   hooks/
     useAgent.ts          # useAgentStreamSubscription + useAgent (sendMessage, interrupt, sendUIAction)
   styles/
-    globals.css          # Tailwind + CSS 变量主题定义 + UI 窗口样式
+    globals.css          # Tailwind + CSS variable theme definitions + UI window styles
 
-shared/                  # 主进程和渲染进程共享
+mobile/                  # Mobile web client (served via relay server)
+  index.html             # Mobile SPA entry
+  main.tsx               # React mount point
+  App.tsx                # Root: ConnectScreen ↔ ChatApp (connection-gated)
+  vite.config.ts         # Vite config (base: /app/, builds to relay-server/static/)
+  api/
+    relay-ws-client.ts   # WebSocket client for relay communication
+    remote-api.ts        # Creates electronAPI shim over WebSocket (request/response/push)
+    connection-store.ts  # Connection state (Zustand): connect, disconnect, auto-connect
+  components/
+    chat/                # MobileChatView
+    connect/             # ConnectScreen (device code entry)
+    layout/              # MobileHeader, ConversationDrawer, ConnectionStatusBar
+    settings/            # MobileSettings
+    ui-overlay/          # UIBottomSheet (generative UI rendered inline as bottom sheet)
+  hooks/                 # useAgent, useConnection
+  store/                 # conversation-store, settings-store (mirror desktop stores)
+  styles/                # Mobile-specific styles
+  utils/                 # Shared utilities
+
+relay-server/            # Go relay server (WebSocket bridge)
+  main.go                # HTTP server entry (default port 9527)
+  handler.go             # WebSocket upgrade + message routing handlers
+  protocol.go            # RelayMessage envelope types (request/response/push/control)
+  room.go                # Room manager: device code → (desktop, mobile) pairing
+  Dockerfile             # Multi-stage build (golang:1.22 → alpine:3.19)
+  static/                # Mobile web client build output (served at /app/)
+
+shared/                  # Shared between main and renderer processes
   constants/
-    ipc-channels.ts      # 所有 IPC 通道名常量（24 个）
+    ipc-channels.ts      # All IPC channel name constants
   types/
-    ipc.ts               # IPC 负载类型 + IpcAgentEvent + ElectronAPI 接口
+    ipc.ts               # IPC payload types + IpcAgentEvent + ElectronAPI interface
     settings.ts          # AppSettings, ModelConfig, SkillConfig, McpServerConfig
     conversation.ts      # Conversation, AppMessage, MessageContentBlock
-    ui-schema.ts         # UISchema, 全部 UI 组件类型定义, UIAction
+    ui-schema.ts         # UISchema, all UI component type definitions, UIAction
 
-skills/                  # 内置 Skills（每个子目录含 SKILL.md）
-  generative-ui/         # UI 渲染工具使用指南
-  code-review/           # 代码审查指南
-  email/                 # 邮件读写（含 IMAP/SMTP Python 脚本 + config.json）
+skills/                  # Built-in Skills (each subdirectory contains SKILL.md)
+  generative-ui/         # UI render tool usage guide
+  email/                 # Email read/write (IMAP/SMTP Python scripts + config.json)
 ```
 
-## 架构与数据流
+## Architecture & Data Flow
 
-### Agent 调用链
+### Agent Call Chain
 
 ```
-用户输入 → renderer useAgent.sendMessage()
-  → IPC agent:start (含 modelId?, skillIds?) → main agent-handlers.ts
+User input → renderer useAgent.sendMessage()
+  → IPC agent:start (with modelId?, skillIds?) → main agent-handlers.ts
     → saveMessage() + runAgentSession()
-      → 从 settings.models 解析模型，从 skills 加载并注入 system prompt
-      → Agent(pi-agent-core) 创建，注册工具，调用 agent.prompt()
-        → Agent 订阅 AgentEvent
-          → processAgentEvent() 转为 IpcAgentEvent
-            → sender.send('agent:stream-event', event) 推到渲染进程
-              → useAgentStreamSubscription → handleAgentEvent → 更新 store → UI 重渲染
+      → Resolve model from settings.models, load skills and inject into system prompt
+      → Agent(pi-agent-core) created, tools registered, agent.prompt() called
+        → Agent subscribes to AgentEvent stream
+          → processAgentEvent() converts to IpcAgentEvent
+            → sender.send('agent:stream-event', event) pushes to renderer
+              → useAgentStreamSubscription → handleAgentEvent → update store → UI re-render
 ```
 
-### IPC 通信模式
+### IPC Communication Patterns
 
-- **Renderer → Main**: `ipcRenderer.invoke(channel, payload)` — 请求-响应，通过 preload 白名单校验
-- **Main → Renderer**: `sender.send('agent:stream-event', event)` — 推送流式事件
-- **Main → Renderer**: `sender.send('conversation:title-updated', { id, title })` — 推送自动生成的标题
-- **Main → UI Window**: `win.webContents.send('ui-window:schema', payload)` — 推送 UISchema
+- **Renderer → Main**: `ipcRenderer.invoke(channel, payload)` — request-response, validated via preload whitelist
+- **Main → Renderer**: `sender.send('agent:stream-event', event)` — push streaming events
+- **Main → Renderer**: `sender.send('conversation:title-updated', { id, title })` — push auto-generated title
+- **Main → UI Window**: `win.webContents.send('ui-window:schema', payload)` — push UISchema
 
-**IPC 通道清单**：
+**IPC Channel List**:
 
-| 分类 | 通道 |
-|------|------|
+| Category | Channels |
+|----------|----------|
 | Agent | `agent:start` / `agent:interrupt` / `agent:stream-event` |
 | Conversation | `conversation:list` / `conversation:get` / `conversation:create` / `conversation:delete` / `conversation:title-updated` |
 | Messages | `messages:get` |
@@ -134,69 +170,85 @@ skills/                  # 内置 Skills（每个子目录含 SKILL.md）
 | MCP | `mcp:list` / `mcp:add` / `mcp:remove` / `mcp:reconnect` |
 | UI | `ui:action` / `ui-window:schema` / `ui-window:action` / `ui-window:get-schema` |
 
-### 动态 UI (Generative UI) 流程
+### Generative UI Flow
 
 ```
-LLM 调用 ui_render 工具（传入 UISchema JSON）
-  → Agent tool_execution → message-processor 解析 toolcall_end
-    → 发出 IpcAgentEvent { type: 'ui_render', schema, renderBlockId }
-      ├→ 主窗口：显示 "Dynamic UI opened in new window" 提示
-      └→ openUIWindow() 创建独立 BrowserWindow
-           → 根据组件内容智能估算窗口尺寸（表格按列数/行数、图表 760x520、表单按字段数等）
-           → 加载 ui-window.html（强制 light 主题）
-           → ready-to-show 时发送 UISchema
-           → UIRenderer 根据 schema.rootId 递归渲染组件
+LLM calls ui_render tool (passes UISchema JSON)
+  → Agent tool_execution → message-processor parses toolcall_end
+    → Emits IpcAgentEvent { type: 'ui_render', schema, renderBlockId }
+      ├→ Main window: shows "Dynamic UI opened in new window" indicator
+      └→ openUIWindow() creates standalone BrowserWindow
+           → Smart window sizing based on content (table col/row count, chart 760x520, form field count, etc.)
+           → Loads ui-window.html (forced light theme)
+           → On ready-to-show: sends UISchema
+           → UIRenderer recursively renders components from schema.rootId
 ```
 
-### UISchema 结构
+### Remote Access / Mobile Flow
+
+```
+Desktop app → RelayManager.start(relayUrl)
+  → RelayClient connects to relay server via WebSocket (/ws/desktop)
+    → Relay server assigns device code (e.g. "ABC123")
+    → Desktop displays code in UI
+
+Mobile browser → opens relay-server/app/ (or scans QR)
+  → Enters device code → connects to relay server (/ws/mobile)
+    → Relay server pairs mobile ↔ desktop in same "room"
+    → Mobile installs electronAPI shim (remote-api.ts) over WebSocket
+      → All IPC calls (agent:start, conversation:list, etc.) relayed through WebSocket
+      → Generative UI rendered inline as bottom sheet (UIBottomSheet)
+```
+
+### UISchema Structure
 
 ```typescript
 interface UISchema {
   version: '1.0'
-  rootId: string                           // 根组件 ID
-  components: Record<string, UIComponent>  // 组件 ID → 组件定义
-  actions?: Record<string, UIAction>       // 动作回调定义
+  rootId: string                           // Root component ID
+  components: Record<string, UIComponent>  // Component ID → component definition
+  actions?: Record<string, UIAction>       // Action callback definitions
 }
 ```
 
-支持的组件类型：`table` | `form` | `card` | `button` | `select` | `chart` | `text` | `progress` | `badge` | `container` | `file_picker`
+Supported component types: `table` | `form` | `card` | `button` | `select` | `chart` | `text` | `progress` | `badge` | `container` | `file_picker`
 
-### Schema 规范化 (schema-normalizer.ts)
+### Schema Normalization (schema-normalizer.ts)
 
-LLM 输出的 UISchema 可能有多种变体，`normalizeUISchema()` 负责统一处理：
-- 展平 `{ type, props: { ... } }` 包装为 `{ type, ... }`
-- `children` → `childIds`（container/card）
-- `label` → `header`（table columns）
-- 文本 variant 映射：`h1-h6`/`title` → `heading`，`p`/`paragraph` → `body`
-- `onClick.action`/`onClick.actionId` → `actionId`（button/select）
-- 自动补全缺失的 actionId：`${id}_click` / `${id}_change` / `${id}_submit` / `${id}_pick`
-- `text` 字段 → `content`（text 组件）
+LLM-output UISchema may have various non-standard forms. `normalizeUISchema()` handles:
+- Flattening `{ type, props: { ... } }` wrappers to `{ type, ... }`
+- `children` → `childIds` (container/card)
+- `label` → `header` (table columns)
+- Text variant mapping: `h1-h6`/`title` → `heading`, `p`/`paragraph` → `body`
+- `onClick.action`/`onClick.actionId` → `actionId` (button/select)
+- Auto-generating missing actionIds: `${id}_click` / `${id}_change` / `${id}_submit` / `${id}_pick`
+- `text` field → `content` (text component)
 
-### Agent 工具集
+### Agent Tool Set
 
-| 工具 | 来源 | 用途 |
-|------|------|------|
-| Bash | pi-coding-agent | 执行 shell 命令 |
-| Read | pi-coding-agent | 读取文件 |
-| Write | pi-coding-agent | 写入文件 |
-| Edit | pi-coding-agent | 编辑现有文件 |
-| Glob | pi-coding-agent | 按模式查找文件 |
-| Grep | pi-coding-agent | 搜索文件内容 |
-| WebFetch | pi-coding-agent | 抓取网页 |
-| WebSearch | pi-coding-agent | 搜索网页 |
-| ui_render | 自定义 | 渲染交互式 UI（参数: schema JSON 字符串） |
+| Tool | Source | Purpose |
+|------|--------|---------|
+| Bash | pi-coding-agent | Execute shell commands |
+| Read | pi-coding-agent | Read files |
+| Write | pi-coding-agent | Write files |
+| Edit | pi-coding-agent | Edit existing files |
+| Glob | pi-coding-agent | Find files by pattern |
+| Grep | pi-coding-agent | Search file contents |
+| WebFetch | pi-coding-agent | Fetch web pages |
+| WebSearch | pi-coding-agent | Search the web |
+| ui_render | Custom | Render interactive UI (param: schema JSON string) |
 
-### Skills 技能系统
+### Skills System
 
-- **存储**：builtin 位于 `skills/`（项目根）或打包后 `resources/skills`，user 位于 `userData/skills`
-- **格式**：每个技能一个目录，内含 `SKILL.md` 文件
-- **加载**：`listAllSkills()` 合并 builtin + user，按 `skillStates` 和 `enabled` 筛选
-- **注入**：`buildSystemPromptWithSkills()` 将启用技能以 `<skill name="...">...</skill>` 形式注入 system prompt
-- **前端状态**：`skills-store.ts` 管理 Skills 列表的加载、启用/禁用、增删改查、zip 导入
+- **Storage**: builtins in `skills/` (project root) or packaged `resources/skills`; user skills in `userData/skills`
+- **Format**: each skill is a directory containing a `SKILL.md` file
+- **Loading**: `listAllSkills()` merges builtin + user, filters by `skillStates` and `enabled`
+- **Injection**: `buildSystemPromptWithSkills()` injects enabled skills as `<skill name="...">...</skill>` blocks into the system prompt
+- **Frontend state**: `skills-store.ts` manages skill list loading, enable/disable, CRUD, zip import
 
-### 模型配置
+### Model Configuration
 
-`runner.ts` 中从 `getSetting('models')` 读取 `ModelConfig[]`，选择 `enabled === true` 的模型，或按 `modelId` 指定。
+`runner.ts` reads `ModelConfig[]` from `getSetting('models')`, selects the `enabled === true` model or uses the specified `modelId`.
 
 ```typescript
 interface ModelConfig {
@@ -209,20 +261,20 @@ interface ModelConfig {
 }
 ```
 
-- `apiProtocol === 'anthropic'` 使用 anthropic API，否则使用 `openai-completions` 兼容接口
-- API Key 通过 `getApiKey` 回调传给 Agent
+- `apiProtocol === 'anthropic'` uses the Anthropic API; otherwise uses `openai-completions` compatible interface
+- API Key is passed to Agent via `getApiKey` callback
 
-### 标题自动生成
+### Auto Title Generation
 
-`title-generator.ts` 在首轮对话完成后自动调用 LLM 生成 3-8 词对话标题：
-- 使用与对话相同的模型配置
-- 发送首条 user + assistant 消息给独立 Agent 实例
-- 通过 `CONVERSATION_TITLE_UPDATED` 通道推送标题到渲染进程
-- 用 Set 缓存已生成标题的对话 ID，避免重复生成
+`title-generator.ts` auto-generates a 3-8 word conversation title after the first turn:
+- Uses the same model configuration as the conversation
+- Sends the first user + assistant messages to a separate Agent instance
+- Pushes title to renderer via `CONVERSATION_TITLE_UPDATED` channel
+- Caches generated conversation IDs in a Set to avoid duplicate generation
 
-## 关键类型
+## Key Types
 
-### IpcAgentEvent（main → renderer 流式事件）
+### IpcAgentEvent (main → renderer streaming events)
 
 ```typescript
 type IpcAgentEvent =
@@ -236,7 +288,7 @@ type IpcAgentEvent =
   | { type: 'session_end'; sessionId; status; error? }
 ```
 
-### AppMessage（持久化消息）
+### AppMessage (persisted message)
 
 ```typescript
 interface AppMessage {
@@ -249,12 +301,12 @@ interface AppMessage {
 }
 ```
 
-### AppSettings（应用配置）
+### AppSettings (app configuration)
 
 ```typescript
 interface AppSettings {
-  models: ModelConfig[]           // 多模型配置（每个含 id, name, baseUrl, apiKey, apiProtocol, enabled）
-  skillStates: Record<string, boolean>  // Skill 启用状态
+  models: ModelConfig[]           // Multi-model config (each with id, name, baseUrl, apiKey, apiProtocol, enabled)
+  skillStates: Record<string, boolean>  // Skill enable/disable states
   theme: 'light' | 'dark' | 'system'
   allowedTools: string[]
   defaultCwd: string
@@ -265,68 +317,69 @@ interface AppSettings {
 }
 ```
 
-### 数据库 Schema
+### Database Schema
 
-| 表 | 列 |
-|---|---|
+| Table | Columns |
+|-------|---------|
 | `conversations` | id (PK), title, created_at, updated_at, meta (JSON) |
 | `messages` | id (PK), conversation_id (FK), role, content (JSON), session_id, created_at |
 | `settings` | key (PK), value (JSON) |
 | `mcp_servers` | name (PK), config (JSON), enabled (int), created_at |
 
-索引：`idx_messages_conversation` on messages(conversation_id, created_at)
+Index: `idx_messages_conversation` on messages(conversation_id, created_at)
 
-### Zustand Store 一览
+### Zustand Stores
 
-| Store | 文件 | 主要状态 | 主要 Actions |
-|-------|------|---------|-------------|
+| Store | File | Main State | Main Actions |
+|-------|------|------------|--------------|
 | `useConversationStore` | `conversation-store.ts` | conversations, activeConversationId, messages | loadConversations, selectConversation, createConversation, deleteConversation, addUserMessage, handleAgentEvent, updateConversationTitle |
 | `useAgentStore` | `agent-store.ts` | activeSessionId, isRunning, selectedModelId, selectedSkillIds | setRunning, setIdle, setSelectedModelId, setSelectedSkillIds, toggleSkillId |
 | `useSettingsStore` | `settings-store.ts` | settings (AppSettings), loaded | load, update |
 | `useSkillsStore` | `skills-store.ts` | skills (SkillConfig[]), loaded | load, toggle, save, update, remove, importFromZip |
 
-## 构建注意事项
+## Build Notes
 
-- **ESM 依赖**: `@mariozechner/pi-`* 均为 ESM-only 包，在 `electron.vite.config.ts` 中全部外部化（不打包进 bundle，运行时由 Node.js 直接 import）
-- **主进程输出**: `out/main/index.mjs`（ES 模块格式）
-- **Renderer 双入口**: `index.html`（主窗口）+ `ui-window.html`（动态 UI 窗口）
-- **Native 模块**: `better-sqlite3` 需与 Electron 版本匹配，`npm run rebuild` 可重新编译；`postinstall` 执行 `electron-builder install-app-deps`
-- **路径别名**: `@shared` → `shared/`，`@renderer` → `renderer/`
-- **CSP**: 两个 HTML 入口均设置 `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'`
-- **UI 窗口主题**: `ui-window.html` 强制 light 主题，不跟随应用主题设置
+- **ESM Dependencies**: `@mariozechner/pi-*` packages are ESM-only, externalized in `electron.vite.config.ts` (not bundled; imported at runtime by Node.js)
+- **Main process output**: `out/main/index.mjs` (ES module format)
+- **Renderer dual entry**: `index.html` (main window) + `ui-window.html` (dynamic UI window)
+- **Mobile client**: separate Vite build (`mobile/vite.config.ts`), outputs to `relay-server/static/`, served at `/app/`
+- **Native modules**: `better-sqlite3` must match Electron version; `npm run rebuild` recompiles; `postinstall` runs `electron-builder install-app-deps`
+- **Path aliases**: `@shared` → `shared/`, `@renderer` → `renderer/`, `@generative-ui` → `renderer/components/generative-ui/` (mobile only)
+- **CSP**: both HTML entries set `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'`
+- **UI window theme**: `ui-window.html` forces light theme, does not follow app theme setting
 
-## 扩展开发指南
+## Extension Guide
 
-### 添加新的 UI 组件类型
+### Adding a New UI Component Type
 
-1. 在 `shared/types/ui-schema.ts` 添加组件接口（如 `UIMyComponent`），加入 `UIComponent` 联合类型
-2. 在 `renderer/components/generative-ui/components/` 创建 `UIMyComponent.tsx`
-3. 在 `registry.ts` 的 `componentRegistry` 中注册
-4. （可选）在 `schema-normalizer.ts` 中添加该组件类型的规范化逻辑
+1. Add component interface in `shared/types/ui-schema.ts` (e.g. `UIMyComponent`), add to `UIComponent` union type
+2. Create `UIMyComponent.tsx` in `renderer/components/generative-ui/components/`
+3. Register in `componentRegistry` in `registry.ts`
+4. (Optional) Add normalization logic for the component type in `schema-normalizer.ts`
 
-### 添加新的 Agent 工具
+### Adding a New Agent Tool
 
-1. 在 `main/agent/tools.ts` 中使用 TypeBox 定义参数 schema
-2. 实现 `AgentTool` 接口（name, label, description, parameters, execute）
-3. 在 `buildAgentTools()` 返回数组中加入
-4. 如需在前端特殊处理，在 `message-processor.ts` 中添加拦截逻辑
+1. Define parameter schema using TypeBox in `main/agent/tools.ts`
+2. Implement the `AgentTool` interface (name, label, description, parameters, execute)
+3. Add to the `buildAgentTools()` return array
+4. If frontend needs special handling, add intercept logic in `message-processor.ts`
 
-### 添加新的 IPC 通道
+### Adding a New IPC Channel
 
-1. `shared/constants/ipc-channels.ts` — 添加通道名常量
-2. `main/ipc/` — 创建或追加 handler（`ipcMain.handle`）
-3. `preload/index.ts` — 添加到白名单 + 暴露 API
-4. `shared/types/ipc.ts` — 更新 `ElectronAPI` 类型
-5. 渲染进程通过 `window.electronAPI.xxx` 调用
+1. `shared/constants/ipc-channels.ts` — add channel name constant
+2. `main/ipc/` — create or append handler (`ipcMain.handle`)
+3. `preload/index.ts` — add to whitelist + expose API
+4. `shared/types/ipc.ts` — update `ElectronAPI` type
+5. Renderer calls via `window.electronAPI.xxx`
 
-### 添加新的设置项
+### Adding a New Setting
 
-1. `shared/types/settings.ts` — 在 `AppSettings` 中添加字段 + 设置 `DEFAULT_SETTINGS` 默认值
-2. `renderer/components/settings/GeneralSettings.tsx` 或对应 Settings 组件 — 添加 UI 控件
-3. `main/` 中通过 `getSetting('newField')` 读取
+1. `shared/types/settings.ts` — add field to `AppSettings` + set `DEFAULT_SETTINGS` default
+2. `renderer/components/settings/GeneralSettings.tsx` or appropriate Settings component — add UI control
+3. Read in `main/` via `getSetting('newField')`
 
-### 添加新的 Skill
+### Adding a New Skill
 
-1. 在项目根 `skills/` 下创建子目录（如 `my-skill/`）
-2. 创建 `SKILL.md` 文件，定义技能名称和内容
-3. builtin 技能会自动被 `listAllSkills()` 发现；user 技能通过 Settings → Skills 的 import 导入到 `userData/skills`
+1. Create a subdirectory under `skills/` at the project root (e.g. `my-skill/`)
+2. Create a `SKILL.md` file defining the skill name and content
+3. Builtin skills are auto-discovered by `listAllSkills()`; user skills are imported via Settings → Skills → Import to `userData/skills`
